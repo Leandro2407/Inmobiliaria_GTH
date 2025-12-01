@@ -30,8 +30,15 @@ const MapaSelector = ({ initialLat = null, initialLng = null, initialAddress = '
   const mapRef = useRef(null);
   const searchRef = useRef(null);
   const markerRef = useRef(null);
+  // Usamos una referencia para el callback para evitar recargar el mapa si la función cambia
+  const onLocationChangeRef = useRef(onLocationChange);
   const [addressInput, setAddressInput] = useState(initialAddress || '');
   const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+
+  // Actualizamos la referencia cada vez que cambia la prop
+  useEffect(() => {
+    onLocationChangeRef.current = onLocationChange;
+  }, [onLocationChange]);
 
   useEffect(() => {
     if (!apiKey) {
@@ -80,10 +87,15 @@ const MapaSelector = ({ initialLat = null, initialLng = null, initialAddress = '
             }
 
             setAddressInput(address);
-            onLocationChange && onLocationChange({ lat, lng, address, barrio, ciudad });
+            // Usamos la referencia .current para llamar a la función
+            if (onLocationChangeRef.current) {
+                onLocationChangeRef.current({ lat, lng, address, barrio, ciudad });
+            }
           } catch (err) {
             setAddressInput('');
-            onLocationChange && onLocationChange({ lat, lng });
+            if (onLocationChangeRef.current) {
+                onLocationChangeRef.current({ lat, lng });
+            }
           }
         });
 
@@ -113,7 +125,10 @@ const MapaSelector = ({ initialLat = null, initialLng = null, initialAddress = '
           }
 
           setAddressInput(address);
-          onLocationChange && onLocationChange({ lat, lng, address, barrio, ciudad });
+          // Usamos la referencia .current para llamar a la función
+          if (onLocationChangeRef.current) {
+            onLocationChangeRef.current({ lat, lng, address, barrio, ciudad });
+          }
         });
       })
       .catch((err) => {

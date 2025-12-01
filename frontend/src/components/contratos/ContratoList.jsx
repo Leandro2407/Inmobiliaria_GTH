@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Badge, Spinner, Alert } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import contratoService from '../../services/contratoService';
@@ -8,7 +8,7 @@ const ContratoList = ({ onVerDetalle, onEditarContrato, refreshTrigger, clienteI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const cargarContratos = async () => {
+  const cargarContratos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -42,11 +42,11 @@ const ContratoList = ({ onVerDetalle, onEditarContrato, refreshTrigger, clienteI
     } finally {
       setLoading(false);
     }
-  };
+  }, [clienteId]);
 
   useEffect(() => {
     cargarContratos();
-  }, [refreshTrigger, clienteId]);
+  }, [cargarContratos, refreshTrigger]);
 
   const getBadgeVariant = (estado) => {
     switch (estado) {

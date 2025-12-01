@@ -18,7 +18,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
   
   // 🆕 Estados para verificación de bloqueo
   const [verificandoBloqueo, setVerificandoBloqueo] = useState(false);
-  const [clienteBloqueado, setClienteBloqueado] = useState(false);
   const [minutosRestantes, setMinutosRestantes] = useState(0);
   const [tiempoBloqueoHoras, setTiempoBloqueoHoras] = useState(2);
   const [finBloqueo, setFinBloqueo] = useState(null); // 🆕 Fecha/hora fin de bloqueo
@@ -41,7 +40,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       
       console.log('✅ Verificación de bloqueo:', data);
       
-      setClienteBloqueado(!data.puede_agendar);
       setMinutosRestantes(data.minutos_restantes || 0);
       setTiempoBloqueoHoras(data.tiempo_bloqueo_horas || 2);
       setFinBloqueo(data.fin_bloqueo ? new Date(data.fin_bloqueo) : null);
@@ -50,7 +48,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     } catch (error) {
       console.error('❌ Error al verificar bloqueo:', error);
       // En caso de error, permitir continuar
-      setClienteBloqueado(false);
       setMinutosRestantes(0);
       setFinBloqueo(null);
       return true;
@@ -88,16 +85,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       setVisitaDentroBloqueo(false);
       return false;
     }
-  };
-
-  // 🆕 Formatear tiempo restante
-  const formatearTiempoRestante = (minutos) => {
-    if (minutos >= 60) {
-      const horas = Math.floor(minutos / 60);
-      const mins = minutos % 60;
-      return `${horas}h ${mins}m`;
-    }
-    return `${minutos} minutos`;
   };
 
   // 🆕 Formatear fecha/hora del fin de bloqueo
@@ -147,8 +134,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         descripcion: visita.descripcion || '',
       });
       
-      // No verificar bloqueo en modo edición
-      setClienteBloqueado(false);
     } else if (cliente) {
       // Inicializar para nueva visita
       setEsEdicion(false);
@@ -343,7 +328,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         
         // Actualizar información de bloqueo
         if (error.minutos_restantes) {
-          setClienteBloqueado(true);
           setMinutosRestantes(error.minutos_restantes);
         }
         errorMostrado = true;
@@ -383,7 +367,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       descripcion: '',
     });
     setErrors({});
-    setClienteBloqueado(false);
     setMinutosRestantes(0);
     setFinBloqueo(null);
     setVisitaDentroBloqueo(false);

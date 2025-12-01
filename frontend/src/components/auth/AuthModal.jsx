@@ -11,7 +11,6 @@ import '../../styles/AuthModal.css';
 const AuthModal = ({ show, onHide }) => {
   const [mode, setMode] = useState('login'); // 'login', 'register', 'forgot'
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [allPasswordRequirementsMet, setAllPasswordRequirementsMet] = useState(false);
   const dispatch = useDispatch();
   const { loading } = useSelector((state) => state.auth);
@@ -20,7 +19,6 @@ const AuthModal = ({ show, onHide }) => {
     if (!show) {
       setMode('login');
       setShowPassword(false);
-      setShowConfirmPassword(false);
       dispatch(clearError());
     }
   }, [show, dispatch]);
@@ -244,7 +242,7 @@ const AuthModal = ({ show, onHide }) => {
                           id="remember-me"
                         />
                         <a 
-                          href="#" 
+                          href="#!" 
                           className="forgot-password-link"
                           onClick={(e) => {
                             e.preventDefault();
@@ -436,7 +434,7 @@ const AuthModal = ({ show, onHide }) => {
                         {mode === 'login' ? '¿No tenés cuenta? ' : '¿Ya tenés cuenta? '}
                       </span>
                       <a
-                        href="#"
+                        href="#!"
                         className="auth-toggle-link"
                         onClick={(e) => {
                           e.preventDefault();

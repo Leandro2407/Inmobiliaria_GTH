@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Form, Spinner, InputGroup } from 'react-bootstrap';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Container, Row, Col, Card, Button, Form, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import propiedadService from '../services/propiedadService';
 
@@ -11,11 +11,7 @@ const Properties = () => {
     tipo_operacion: '', // Venta/Alquiler
   });
 
-  useEffect(() => {
-    cargarPropiedades();
-  }, [filtros]);
-
-  const cargarPropiedades = async () => {
+  const cargarPropiedades = useCallback(async () => {
     try {
       setLoading(true);
       // Pasamos los filtros al servicio
@@ -26,7 +22,11 @@ const Properties = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filtros]);
+
+  useEffect(() => {
+    cargarPropiedades();
+  }, [cargarPropiedades]);
 
   const handleFilterChange = (e) => {
     setFiltros({ ...filtros, [e.target.name]: e.target.value });
