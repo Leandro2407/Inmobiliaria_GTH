@@ -15,13 +15,13 @@ const Footer = () => {
           </Col>
           <Col md={6} className="text-md-end">
             <div className="social-links">
-              <a href="#" className="text-white me-3">
+              <a href="#!" className="text-white me-3">
                 <i className="fab fa-facebook"></i>
               </a>
               <a href="https://www.instagram.com/gthinmobiliaria?igsh=djliNmZqMGQ1dXkw" className="text-white me-3">
                 <i className="fab fa-instagram"></i>
               </a>
-              <a href="#" className="text-white me-3">
+              <a href="#!" className="text-white me-3">
                 <i className="fab fa-linkedin"></i>
               </a>
               <a href="https://wa.me/5493873115079" className="text-white">

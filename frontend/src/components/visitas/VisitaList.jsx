@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Badge, Spinner, Row, Col, Form, Alert } from 'react-bootstrap';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Button, Table, Badge, Spinner, Form, Alert } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import visitaService from '../../services/visitaService';
 
@@ -12,7 +12,8 @@ const VisitaList = ({ clienteId, onVerDetalle, onNuevaVisita, refreshTrigger, on
   const [filtroEstado, setFiltroEstado] = useState('');
 
   // Cargar visitas desde el servicio
-  const cargarVisitas = async () => {
+  // Usamos useCallback para que la función sea estable y pueda usarse en dependencias de useEffect
+  const cargarVisitas = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,12 +50,12 @@ const VisitaList = ({ clienteId, onVerDetalle, onNuevaVisita, refreshTrigger, on
     } finally {
       setLoading(false);
     }
-  };
+  }, [clienteId, filtroEstado]);
 
   // Efecto para cargar visitas cuando cambian dependencias
   useEffect(() => {
     cargarVisitas();
-  }, [clienteId, filtroEstado, refreshTrigger]);
+  }, [cargarVisitas, refreshTrigger]);
 
   // Efecto para actualización automática periódica
   useEffect(() => {
@@ -64,7 +65,7 @@ const VisitaList = ({ clienteId, onVerDetalle, onNuevaVisita, refreshTrigger, on
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [clienteId, filtroEstado]);
+  }, [cargarVisitas]);
 
   // Obtener color del badge según el estado
   const getEstadoBadge = (estado) => {
