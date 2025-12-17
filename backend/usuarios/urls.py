@@ -11,6 +11,7 @@ from .views import (
     VerifyEmailView,
     UserDetailView,
     UserListView,
+    AgenteListView, # Importada la nueva vista
 )
 
 app_name = 'usuarios'
@@ -34,6 +35,7 @@ urlpatterns = [
     # Verificación de email
     path('verify-email/', VerifyEmailView.as_view(), name='verify_email'),
     
-    # Lista de usuarios (admin)
-    path('users/', UserListView.as_view(), name='user_list'),
+    # Listas de usuarios
+    path('users/', UserListView.as_view(), name='user_list'), # Solo Staff
+    path('agentes/', AgenteListView.as_view(), name='agente_list'), # Público (Para selectores)
 ]

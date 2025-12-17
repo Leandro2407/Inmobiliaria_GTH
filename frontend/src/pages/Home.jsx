@@ -15,6 +15,12 @@ const Home = () => {
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Formatear número con separadores de miles
+  const formatNumber = (value) => {
+    if (!value) return '';
+    return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
   const handleFilterChange = (e) => {
     setSearchFilters({
       ...searchFilters,
@@ -24,7 +30,6 @@ const Home = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // Implementación simple de búsqueda por filtros usando la API
     loadProperties();
   };
 
@@ -37,10 +42,9 @@ const Home = () => {
       if (searchFilters.barrio) params.barrio = searchFilters.barrio;
       if (searchFilters.zona) params.zona = searchFilters.zona;
 
-      const data = await propiedadService.getAll(params);
-      // Si la API devuelve { results: [...] } o directamente [...]
-      const props = data.results || data;
-      setFeaturedProperties(props);
+      // Cargar propiedades destacadas
+      const data = await propiedadService.getDestacadas();
+      setFeaturedProperties(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error al cargar propiedades:', error);
     } finally {
@@ -52,6 +56,18 @@ const Home = () => {
     loadProperties();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Obtener imagen principal o primera imagen
+  const getPropertyImage = (property) => {
+    if (property.imagen_principal) {
+      return property.imagen_principal;
+    }
+    if (property.imagenes && property.imagenes.length > 0) {
+      const principalImg = property.imagenes.find(img => img.es_principal);
+      return principalImg ? principalImg.imagen : property.imagenes[0].imagen;
+    }
+    return 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad';
+  };
 
   return (
     <div className="home-page">
@@ -139,8 +155,8 @@ const Home = () => {
         <Container>
           <Row className="mb-5">
             <Col>
-              <h2 className="fw-bold mb-3">Propiedades</h2>
-              <p className="text-muted">Descubrí nuestras opciones disponibles</p>
+              <h2 className="fw-bold mb-3">Propiedades Destacadas</h2>
+              <p className="text-muted">Descubrí nuestras mejores opciones disponibles</p>
             </Col>
           </Row>
 
@@ -155,62 +171,79 @@ const Home = () => {
                 <Col>
                   <div className="text-center py-5">
                     <i className="fas fa-home fa-3x text-muted mb-3 d-block"></i>
-                    <p className="text-muted">No hay propiedades para mostrar</p>
+                    <p className="text-muted">No hay propiedades destacadas para mostrar</p>
                     <Button as={Link} to="/propiedades" variant="dark">
-                      Ir al panel de propiedades
+                      Ver todas las propiedades
                     </Button>
                   </div>
                 </Col>
               ) : (
                 featuredProperties.map((property) => (
-                  <Col lg={4} md={6} key={property.id || property._id}>
+                  <Col lg={4} md={6} key={property.id}>
                     <Card className="property-card h-100 shadow-sm border-0">
                       <div className="property-image-wrapper position-relative">
                         <Card.Img
                           variant="top"
-                          src={
-                            // intento usar la primera imagen; si no existe, placeholder
-                            property.imagenes && property.imagenes.length > 0
-                              ? property.imagenes[0].imagen
-                              : property.imagen || 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad'
-                          }
-                          alt={property.titulo || property.title}
+                          src={getPropertyImage(property)}
+                          alt={property.titulo}
                           className="property-image"
+                          style={{ height: '250px', objectFit: 'cover' }}
                         />
-                        <span className="property-badge position-absolute">
-                          {property.operacion || property.tipo}
+                        <span className="property-badge position-absolute top-0 end-0 m-3 badge bg-dark">
+                          {property.operacion}
                         </span>
                       </div>
-                      <Card.Body>
+                      <Card.Body className="d-flex flex-column">
                         <Card.Title className="fw-bold">{property.titulo}</Card.Title>
-                        <Card.Subtitle className="mb-2 text-muted">
-                          {property.dormitorios && `${property.dormitorios} dormitorios`}
-                          {property.banos && ` • ${property.banos} baños`}
-                          {` • ${property.superficie_total || property.superficie || ''}`}
+                        <Card.Subtitle className="mb-3 text-muted">
+                          <i className="fas fa-map-marker-alt me-1"></i>
+                          {property.barrio}
                         </Card.Subtitle>
-                        <Card.Text className="text-muted">
-                          {property.descripcion?.slice(0, 120) || ''}
-                          {property.descripcion && property.descripcion.length > 120 ? '...' : ''}
+                        
+                        <div className="d-flex justify-content-between text-muted small mb-3">
+                          {property.dormitorios > 0 && (
+                            <span>
+                              <i className="fas fa-bed me-1"></i>
+                              {property.dormitorios}
+                            </span>
+                          )}
+                          {property.banos > 0 && (
+                            <span>
+                              <i className="fas fa-bath me-1"></i>
+                              {property.banos}
+                            </span>
+                          )}
+                          {property.superficie_total && (
+                            <span>
+                              <i className="fas fa-ruler-combined me-1"></i>
+                              {property.superficie_total} m²
+                            </span>
+                          )}
+                        </div>
+
+                        <Card.Text className="text-muted flex-grow-1">
+                          {property.descripcion?.slice(0, 100) || ''}
+                          {property.descripcion && property.descripcion.length > 100 ? '...' : ''}
                         </Card.Text>
-                        <div className="d-flex justify-content-between align-items-center mt-3">
+                        
+                        <div className="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
                           <span className="property-price fw-bold fs-5">
-                            {property.precio_display || (property.moneda ? `${property.moneda} ` : '')}
-                            {property.precio_venta
-                              ? parseFloat(property.precio_venta).toLocaleString()
-                              : property.precio || ''}
+                            {property.moneda === 'USD' ? 'U$S' : '$'} 
+                            {' '}
+                            {property.precio_venta 
+                              ? formatNumber(property.precio_venta)
+                              : property.precio_alquiler 
+                              ? formatNumber(property.precio_alquiler)
+                              : ''}
                           </span>
                           <div>
                             <Button
                               as={Link}
-                              to={`/propiedades/${property.id || property._id}`}
-                              variant="outline-dark"
+                              to={`/propiedades/${property.id}`}
+                              variant="dark"
                               size="sm"
-                              className="me-2"
                             >
                               Ver detalles
-                            </Button>
-                            <Button variant="success" size="sm">
-                              <i className="fab fa-whatsapp"></i>
                             </Button>
                           </div>
                         </div>

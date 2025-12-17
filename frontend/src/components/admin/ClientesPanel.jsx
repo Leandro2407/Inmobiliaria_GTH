@@ -21,13 +21,53 @@ const SALTA_CITIES = [
   'TOLAR GRANDE', 'URUNDEL', 'VAQUEROS' 
 ];
 
-const ClientesPanel = () => {
+// Componente de Modal de Confirmación Personalizado
+const ConfirmDeleteModal = ({ show, onHide, onConfirm, clienteNombre }) => {
+  return (
+    <Modal show={show} onHide={onHide} centered>
+      <Modal.Header closeButton className="border-0 pb-0">
+        <Modal.Title className="w-100 text-center">
+          <i className="fas fa-exclamation-triangle" style={{ fontSize: '3rem', color: '#6c757d' }}></i>
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="text-center px-4">
+        <h5 className="mb-3">¿Está seguro que desea eliminar este cliente?</h5>
+        <p className="text-muted mb-0">
+          <strong>{clienteNombre}</strong>
+        </p>
+        <p className="text-muted small">
+          Esta acción no se puede deshacer
+        </p>
+      </Modal.Body>
+      <Modal.Footer className="border-0 justify-content-center pb-4">
+        <Button 
+          variant="outline-secondary" 
+          onClick={onHide}
+          className="px-4"
+        >
+          Cancelar
+        </Button>
+        <Button 
+          variant="dark" 
+          onClick={onConfirm}
+          className="px-4"
+        >
+          Eliminar
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+const ClientesPanel = ({ onClienteCreado }) => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [clienteEditar, setClienteEditar] = useState(null);
   const [clienteVer, setClienteVer] = useState(null);
+  const [clienteEliminar, setClienteEliminar] = useState(null);
   const [filtros, setFiltros] = useState({
     search: '',
     categoria: '',
@@ -95,6 +135,10 @@ const ClientesPanel = () => {
       } else {
         await clienteService.create(values);
         toast.success('Cliente registrado exitosamente');
+        // Notificar al componente padre sobre la creación
+        if (onClienteCreado) {
+          onClienteCreado();
+        }
       }
       
       setShowModal(false);
@@ -110,26 +154,47 @@ const ClientesPanel = () => {
     }
   };
 
-  const handleVer = (cliente) => {
-    setClienteVer(cliente);
-    setShowViewModal(true);
+  const handleVer = async (cliente) => {
+    try {
+      // Obtener los datos completos del cliente desde el backend
+      const clienteCompleto = await clienteService.getById(cliente.id);
+      setClienteVer(clienteCompleto);
+      setShowViewModal(true);
+    } catch (error) {
+      console.error('Error al cargar detalles del cliente:', error);
+      toast.error('Error al cargar los detalles del cliente');
+    }
   };
 
-  const handleEditar = (cliente) => {
-    setClienteEditar(cliente);
-    setShowModal(true);
+  const handleEditar = async (cliente) => {
+    try {
+      // Obtener los datos completos del cliente desde el backend
+      const clienteCompleto = await clienteService.getById(cliente.id);
+      setClienteEditar(clienteCompleto);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Error al cargar datos del cliente:', error);
+      toast.error('Error al cargar los datos del cliente');
+    }
   };
 
-  const handleEliminar = async (id) => {
-    if (window.confirm('¿Está seguro de eliminar este cliente?')) {
-      try {
-        await clienteService.delete(id);
-        toast.success('Cliente eliminado exitosamente');
-        cargarClientes();
-      } catch (error) {
-        console.error('Error al eliminar cliente:', error);
-        toast.error('Error al eliminar el cliente');
-      }
+  const handleEliminar = (cliente) => {
+    setClienteEliminar(cliente);
+    setShowDeleteModal(true);
+  };
+
+  const confirmarEliminar = async () => {
+    if (!clienteEliminar) return;
+    
+    try {
+      await clienteService.delete(clienteEliminar.id);
+      toast.success('Cliente eliminado exitosamente');
+      setShowDeleteModal(false);
+      setClienteEliminar(null);
+      cargarClientes();
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error);
+      toast.error('Error al eliminar el cliente');
     }
   };
 
@@ -255,7 +320,7 @@ const ClientesPanel = () => {
                         <td>{new Date(cliente.fecha_registro).toLocaleDateString()}</td>
                         <td>
                           <Button
-                            variant="outline-info"
+                            variant="outline-dark"
                             size="sm"
                             className="me-1"
                             onClick={() => handleVer(cliente)}
@@ -264,7 +329,7 @@ const ClientesPanel = () => {
                             <i className="fas fa-eye"></i>
                           </Button>
                           <Button
-                            variant="outline-primary"
+                            variant="outline-dark"
                             size="sm"
                             className="me-1"
                             onClick={() => handleEditar(cliente)}
@@ -273,9 +338,9 @@ const ClientesPanel = () => {
                             <i className="fas fa-edit"></i>
                           </Button>
                           <Button
-                            variant="outline-danger"
+                            variant="outline-dark"
                             size="sm"
-                            onClick={() => handleEliminar(cliente.id)}
+                            onClick={() => handleEliminar(cliente)}
                             title="Eliminar"
                           >
                             <i className="fas fa-trash"></i>
@@ -293,94 +358,100 @@ const ClientesPanel = () => {
 
       {/* Modal de Visualización */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header closeButton style={{ backgroundColor: '#2c2c2c', color: 'white', borderBottom: 'none' }}>
           <Modal.Title>
             <i className="fas fa-user me-2"></i>
             Detalles del Cliente
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ backgroundColor: '#f8f9fa' }}>
           {clienteVer && (
             <div>
-              <Row className="mb-4 pb-3 border-bottom">
-                <Col md={12}>
-                  <h5 className="text-primary mb-3">
+              <Card className="mb-3 border-0 shadow-sm">
+                <Card.Body>
+                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
                     <i className="fas fa-id-card me-2"></i>
                     Información Personal
                   </h5>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <p className="mb-1"><strong>Nombre Completo:</strong></p>
-                  <p className="text-muted">{clienteVer.nombre_completo}</p>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <p className="mb-1"><strong>DNI:</strong></p>
-                  <p className="text-muted">{clienteVer.dni}</p>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <p className="mb-1"><strong>Email:</strong></p>
-                  <p className="text-muted">{clienteVer.email}</p>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <p className="mb-1"><strong>Teléfono:</strong></p>
-                  <p className="text-muted">{clienteVer.telefono}</p>
-                </Col>
-              </Row>
+                  <Row>
+                    <Col md={6} className="mb-3">
+                      <p className="mb-1 text-muted small">Nombre Completo:</p>
+                      <p className="fw-bold mb-0">{clienteVer.nombre_completo}</p>
+                    </Col>
+                    <Col md={6} className="mb-3">
+                      <p className="mb-1 text-muted small">DNI:</p>
+                      <p className="fw-bold mb-0">{clienteVer.dni}</p>
+                    </Col>
+                    <Col md={6} className="mb-3">
+                      <p className="mb-1 text-muted small">Email:</p>
+                      <p className="fw-bold mb-0">{clienteVer.email}</p>
+                    </Col>
+                    <Col md={6} className="mb-3">
+                      <p className="mb-1 text-muted small">Teléfono:</p>
+                      <p className="fw-bold mb-0">{clienteVer.telefono}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
 
-              <Row className="mb-4 pb-3 border-bottom">
-                <Col md={12}>
-                  <h5 className="text-primary mb-3">
+              <Card className="mb-3 border-0 shadow-sm">
+                <Card.Body>
+                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
                     <i className="fas fa-map-marker-alt me-2"></i>
                     Ubicación
                   </h5>
-                </Col>
-                <Col md={12} className="mb-3">
-                  <p className="mb-1"><strong>Domicilio:</strong></p>
-                  <p className="text-muted">{clienteVer.domicilio}</p>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <p className="mb-1"><strong>Ciudad:</strong></p>
-                  <p className="text-muted">{clienteVer.ciudad}</p>
-                </Col>
-                {clienteVer.codigo_postal && (
-                  <Col md={6} className="mb-3">
-                    <p className="mb-1"><strong>Código Postal:</strong></p>
-                    <p className="text-muted">{clienteVer.codigo_postal}</p>
-                  </Col>
-                )}
-              </Row>
+                  <Row>
+                    <Col md={12} className="mb-3">
+                      <p className="mb-1 text-muted small">Domicilio:</p>
+                      <p className="fw-bold mb-0">{clienteVer.domicilio || 'No especificado'}</p>
+                    </Col>
+                    <Col md={6} className="mb-3">
+                      <p className="mb-1 text-muted small">Ciudad:</p>
+                      <p className="fw-bold mb-0">{clienteVer.ciudad || 'No especificada'}</p>
+                    </Col>
+                    {clienteVer.codigo_postal && (
+                      <Col md={6} className="mb-3">
+                        <p className="mb-1 text-muted small">Código Postal:</p>
+                        <p className="fw-bold mb-0">{clienteVer.codigo_postal}</p>
+                      </Col>
+                    )}
+                  </Row>
+                </Card.Body>
+              </Card>
 
-              <Row className="mb-3">
-                <Col md={12}>
-                  <h5 className="text-primary mb-3">
+              <Card className="border-0 shadow-sm">
+                <Card.Body>
+                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
                     <i className="fas fa-info-circle me-2"></i>
                     Información Adicional
                   </h5>
-                </Col>
-                <Col md={4} className="mb-3">
-                  <p className="mb-1"><strong>Categoría:</strong></p>
-                  <p className="text-muted text-capitalize">{clienteVer.categoria}</p>
-                </Col>
-                <Col md={4} className="mb-3">
-                  <p className="mb-1"><strong>Estado:</strong></p>
-                  <Badge bg={getBadgeColor(clienteVer.estado)} className="text-capitalize">
-                    {clienteVer.estado}
-                  </Badge>
-                </Col>
-                <Col md={4} className="mb-3">
-                  <p className="mb-1"><strong>Fecha de Registro:</strong></p>
-                  <p className="text-muted">{new Date(clienteVer.fecha_registro).toLocaleDateString()}</p>
-                </Col>
-              </Row>
+                  <Row>
+                    <Col md={4} className="mb-3">
+                      <p className="mb-1 text-muted small">Categoría:</p>
+                      <p className="fw-bold mb-0 text-capitalize">{clienteVer.categoria}</p>
+                    </Col>
+                    <Col md={4} className="mb-3">
+                      <p className="mb-1 text-muted small">Estado:</p>
+                      <Badge bg={getBadgeColor(clienteVer.estado)} className="text-capitalize">
+                        {clienteVer.estado}
+                      </Badge>
+                    </Col>
+                    <Col md={4} className="mb-3">
+                      <p className="mb-1 text-muted small">Fecha de Registro:</p>
+                      <p className="fw-bold mb-0">{new Date(clienteVer.fecha_registro).toLocaleDateString()}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
+        <Modal.Footer className="border-0" style={{ backgroundColor: '#f8f9fa' }}>
+          <Button variant="outline-secondary" onClick={() => setShowViewModal(false)}>
             Cerrar
           </Button>
           <Button 
-            variant="primary" 
+            variant="dark" 
             onClick={() => {
               setShowViewModal(false);
               handleEditar(clienteVer);
@@ -440,7 +511,6 @@ const ClientesPanel = () => {
                         value={values.nombre}
                         onChange={(e) => {
                           const value = e.target.value;
-                          // Solo permite letras y espacios
                           if (value === '' || /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]*$/.test(value)) {
                             setFieldValue('nombre', value);
                           }
@@ -463,7 +533,6 @@ const ClientesPanel = () => {
                         value={values.apellido}
                         onChange={(e) => {
                           const value = e.target.value;
-                          // Solo permite letras y espacios
                           if (value === '' || /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]*$/.test(value)) {
                             setFieldValue('apellido', value);
                           }
@@ -489,7 +558,6 @@ const ClientesPanel = () => {
                         value={values.dni}
                         onChange={(e) => {
                           const value = e.target.value;
-                          // Solo permite números
                           if (value === '' || /^[0-9]*$/.test(value)) {
                             setFieldValue('dni', value);
                           }
@@ -533,7 +601,6 @@ const ClientesPanel = () => {
                         value={values.telefono}
                         onChange={(e) => {
                           const value = e.target.value;
-                          // Solo permite números
                           if (value === '' || /^[0-9]*$/.test(value)) {
                             setFieldValue('telefono', value);
                           }
@@ -661,7 +728,18 @@ const ClientesPanel = () => {
         </Modal.Body>
       </Modal>
 
-      {/* Estilos CSS para cambiar el color al pasar el cursor */}
+      {/* Modal de Confirmación de Eliminación */}
+      <ConfirmDeleteModal
+        show={showDeleteModal}
+        onHide={() => {
+          setShowDeleteModal(false);
+          setClienteEliminar(null);
+        }}
+        onConfirm={confirmarEliminar}
+        clienteNombre={clienteEliminar?.nombre_completo || ''}
+      />
+
+      {/* Estilos CSS */}
       <style>
         {`
           .custom-select option:hover {

@@ -1,3 +1,10 @@
+# El modelo de Propiedad ya está bien estructurado
+# No necesita cambios porque el campo 'direccion' puede almacenar
+# la dirección completa que se construye en el frontend
+
+# Solo asegúrate de que el campo caracteristicas acepta texto largo
+# y que el modelo de Usuario existe para la relación agente_cargo
+
 from django.db import models
 from django.core.validators import MinValueValidator
 from usuarios.models import Usuario
@@ -17,7 +24,6 @@ class Propiedad(models.Model):
     OPERACION_CHOICES = [
         ('venta', 'Venta'),
         ('alquiler', 'Alquiler'),
-        ('ambos', 'Venta y Alquiler'),
     ]
     
     ESTADO_CHOICES = [
@@ -118,12 +124,11 @@ class Propiedad(models.Model):
     
     @property
     def precio_display(self):
-        if self.operacion == 'venta':
-            return f"${self.precio_venta:,.0f}"
-        elif self.operacion == 'alquiler':
-            return f"${self.precio_alquiler:,.0f}/mes"
-        else:
-            return f"Venta: ${self.precio_venta:,.0f} | Alquiler: ${self.precio_alquiler:,.0f}/mes"
+        if self.operacion == 'venta' and self.precio_venta:
+            return f"{self.moneda} {int(self.precio_venta):,}".replace(',', '.')
+        elif self.operacion == 'alquiler' and self.precio_alquiler:
+            return f"{self.moneda} {int(self.precio_alquiler):,}/mes".replace(',', '.')
+        return "Consultar"
     
     @property
     def esta_disponible(self):
@@ -159,7 +164,7 @@ class VideoPropiedad(models.Model):
     """Modelo para videos de propiedades"""
     
     propiedad = models.ForeignKey(Propiedad, on_delete=models.CASCADE, related_name='videos')
-    video = models.FileField('Video', upload_to='propiedades/videos/%Y/%m/')
+    video = models.FileField('Video', upload_to='propiedades/videos/%Y/%m/', blank=True, null=True)
     url_youtube = models.URLField('URL de YouTube', blank=True)
     titulo = models.CharField('Título', max_length=200, blank=True)
     miniatura = models.ImageField('Miniatura', upload_to='propiedades/miniaturas/%Y/%m/', blank=True)
