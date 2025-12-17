@@ -10,9 +10,7 @@ Usuario = get_user_model()
 class UsuarioSerializer(serializers.ModelSerializer):
     """
     Serializer básico para Usuario.
-    MODIFICADO: Se agregaron todos los campos del perfil.
     """
-    
     full_name = serializers.CharField(source='get_full_name', read_only=True)
     
     class Meta:
@@ -25,6 +23,18 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'date_joined', 'full_name'
         ]
         read_only_fields = ['id', 'date_joined', 'email_verified', 'full_name', 'rol']
+
+
+class AgenteSerializer(serializers.ModelSerializer):
+    """
+    Serializer optimizado para listar agentes en selectores y fichas públicas.
+    Solo expone información pública.
+    """
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
+    
+    class Meta:
+        model = Usuario
+        fields = ['id', 'full_name', 'email', 'telefono', 'foto_perfil', 'rol', 'puesto']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -103,7 +113,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Serializer personalizado para JWT que incluye datos del usuario.
-    MODIFICADO: Se agregaron todos los campos del perfil al objeto 'user'.
     """
     
     @classmethod
@@ -178,7 +187,6 @@ class ChangePasswordSerializer(serializers.Serializer):
 class ProfileUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer para actualización de perfil.
-    MODIFICADO: Se agregaron todos los campos de Perfil.jsx.
     """
     
     class Meta:

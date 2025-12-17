@@ -11,7 +11,8 @@ import secrets
 from .serializers import (
     UsuarioSerializer, RegisterSerializer, CustomTokenObtainPairSerializer,
     ChangePasswordSerializer, ProfileUpdateSerializer,
-    PasswordResetRequestSerializer, PasswordResetConfirmSerializer
+    PasswordResetRequestSerializer, PasswordResetConfirmSerializer,
+    AgenteSerializer
 )
 from .models import VerificacionEmail
 
@@ -109,7 +110,6 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        # Retornar con el serializer completo
         return Response(UsuarioSerializer(instance).data)
 
 
@@ -158,7 +158,6 @@ class PasswordResetRequestView(APIView):
             )
             
             # TODO: Enviar email con link de reseteo
-            # send_password_reset_email(user.email, token)
             
             return Response(
                 {'message': 'Se ha enviado un email con instrucciones para resetear tu contraseña'},
@@ -191,7 +190,6 @@ class PasswordResetConfirmView(APIView):
                 user.set_password(serializer.validated_data['new_password'])
                 user.save()
                 
-                # Marcar token como usado
                 verificacion.usado = True
                 verificacion.save()
                 
@@ -251,7 +249,7 @@ class VerifyEmailView(APIView):
 
 
 class UserDetailView(generics.RetrieveAPIView):
-    """Vista para obtener detalles de un usuario (solo para staff)"""
+    """Vista para obtener detalles de un usuario"""
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -271,13 +269,13 @@ class UserListView(generics.ListAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     
     def get_queryset(self):
-        # Solo staff puede ver lista de usuarios
+        # Solo staff puede ver lista completa de usuarios
         if not self.request.user.is_staff:
             return Usuario.objects.filter(id=self.request.user.id)
         
         queryset = Usuario.objects.all()
         
-        # Filtros opcionales
+        # Filtros
         rol = self.request.query_params.get('rol', None)
         if rol:
             queryset = queryset.filter(rol=rol)
@@ -287,3 +285,19 @@ class UserListView(generics.ListAPIView):
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
         return queryset
+
+
+class AgenteListView(generics.ListAPIView):
+    """
+    Vista PÚBLICA para listar agentes inmobiliarios.
+    Necesaria para poblar los selectores del frontend y mostrar info en propiedades.
+    """
+    serializer_class = AgenteSerializer
+    permission_classes = (permissions.AllowAny,)
+    
+    def get_queryset(self):
+        # Retorna usuarios que sean agentes o administradores y estén activos
+        return Usuario.objects.filter(
+            rol__in=['agente', 'administrador'], 
+            is_active=True
+        ).order_by('first_name', 'last_name')

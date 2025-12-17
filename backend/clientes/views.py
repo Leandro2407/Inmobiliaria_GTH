@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import models
+from django.db.models import Count
 from .models import Cliente
 from .serializers import ClienteSerializer, ClienteListSerializer, ClienteCreateUpdateSerializer
 from usuarios.permissions import IsAgenteOrAdmin
@@ -20,13 +20,21 @@ class ClienteViewSet(viewsets.ModelViewSet):
     ordering = ['-fecha_registro']
     
     def get_serializer_class(self):
+        """
+        Retorna el serializer apropiado según la acción:
+        - list: Serializer simplificado para listados
+        - retrieve: Serializer completo con todos los campos
+        - create/update: Serializer para creación y actualización
+        """
         if self.action == 'list':
             return ClienteListSerializer
         elif self.action in ['create', 'update', 'partial_update']:
             return ClienteCreateUpdateSerializer
+        # Para retrieve y otras acciones, usar el serializer completo
         return ClienteSerializer
     
     def perform_create(self, serializer):
+        """Asigna el usuario que creó el cliente"""
         serializer.save(creado_por=self.request.user)
     
     @action(detail=False, methods=['get'])
@@ -35,14 +43,20 @@ class ClienteViewSet(viewsets.ModelViewSet):
         total = Cliente.objects.count()
         activos = Cliente.objects.filter(estado='activo').count()
         prospectos = Cliente.objects.filter(estado='prospecto').count()
+        inactivos = Cliente.objects.filter(estado='inactivo').count()
+        convertidos = Cliente.objects.filter(estado='convertido').count()
+        
+        # Estadísticas por categoría
         por_categoria = Cliente.objects.values('categoria').annotate(
-            total=models.Count('id')
+            total=Count('id')
         )
         
         return Response({
             'total': total,
             'activos': activos,
             'prospectos': prospectos,
+            'inactivos': inactivos,
+            'convertidos': convertidos,
             'por_categoria': list(por_categoria)
         })
     
@@ -61,7 +75,10 @@ class ClienteViewSet(viewsets.ModelViewSet):
         cliente.estado = nuevo_estado
         cliente.save()
         
+        serializer = self.get_serializer(cliente)
+        
         return Response({
             'message': 'Estado actualizado correctamente',
-            'estado': nuevo_estado
+            'estado': nuevo_estado,
+            'cliente': serializer.data
         })
