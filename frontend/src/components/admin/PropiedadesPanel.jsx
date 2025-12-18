@@ -59,6 +59,7 @@ const PropiedadesPanel = () => {
   const [propiedadEliminar, setPropiedadEliminar] = useState(null);
   const [imagenesPrevias, setImagenesPrevias] = useState([]);
   const [imagenesSubir, setImagenesSubir] = useState([]);
+  const fileInputRef = React.useRef(null);
   const [filtros, setFiltros] = useState({
     search: '',
     tipo: '',
@@ -93,8 +94,8 @@ const PropiedadesPanel = () => {
   // Cargar lista de Agentes
   const cargarAgentes = useCallback(async () => {
     try {
-      // Usamos el endpoint nuevo que creamos en el backend
-      const response = await api.get('/usuarios/agentes/');
+      // Usamos el endpoint del backend; la app 'usuarios' está incluida en /api/auth/
+      const response = await api.get('/auth/agentes/');
       setAgentes(response.data.results || response.data);
     } catch (error) {
       console.error('Error al cargar agentes:', error);
@@ -106,6 +107,12 @@ const PropiedadesPanel = () => {
     cargarPropiedades();
     cargarAgentes();
   }, [cargarPropiedades, cargarAgentes]);
+
+  const ensureAbsoluteUrl = (url) => {
+    if (!url) return 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad';
+    if (url.startsWith('http')) return url;
+    return `${process.env.REACT_APP_API_URL}${url}`;
+  };
 
   const validationSchema = Yup.object().shape({
     titulo: Yup.string().required('El título es requerido').min(10, 'Mínimo 10 caracteres'),
@@ -142,6 +149,7 @@ const PropiedadesPanel = () => {
 
   const handleImagenesChange = (e) => {
     const files = Array.from(e.target.files);
+    console.debug('handleImagenesChange files:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
 
     const validFiles = files.filter(file => {
       if (file.size > 5 * 1024 * 1024) {
@@ -236,11 +244,58 @@ const PropiedadesPanel = () => {
       delete propiedadData.numero_calle;
       delete propiedadData.caracteristicas_list;
 
+      // Normalizar campos para evitar enviar strings vacíos que fallan en el serializer
+      if (propiedadData.precio_venta === '') delete propiedadData.precio_venta;
+      if (propiedadData.precio_alquiler === '') delete propiedadData.precio_alquiler;
+      if (propiedadData.latitud === '') delete propiedadData.latitud;
+      if (propiedadData.longitud === '') delete propiedadData.longitud;
+      if (propiedadData.agente_cargo === '') propiedadData.agente_cargo = null;
+
+      // Coercer campos numéricos a Number (DRF acepta strings pero es más seguro enviar números)
+      const toNumber = (v, { allowDecimals = true, decimals = 8 } = {}) => {
+        if (v === null || v === undefined || v === '') return undefined;
+        let s = String(v).trim();
+
+        // Para campos que permiten decimales (lat/long, superficies), preservamos el punto
+        if (allowDecimals) {
+          s = s.replace(/\s/g, '').replace(',', '.');
+        } else {
+          // Para precios formateados con puntos como miles, los removemos
+          s = s.replace(/\./g, '').replace(',', '.');
+        }
+
+        const n = Number(s);
+        if (Number.isNaN(n)) return undefined;
+
+        // Redondear a la cantidad de decimales solicitada
+        if (typeof decimals === 'number') {
+          const factor = Math.pow(10, decimals);
+          return Math.round(n * factor) / factor;
+        }
+
+        return n;
+      };
+
+      if ('precio_venta' in propiedadData) propiedadData.precio_venta = toNumber(propiedadData.precio_venta, { allowDecimals: false, decimals: 2 });
+      if ('precio_alquiler' in propiedadData) propiedadData.precio_alquiler = toNumber(propiedadData.precio_alquiler, { allowDecimals: false, decimals: 2 });
+      if ('superficie_total' in propiedadData) propiedadData.superficie_total = toNumber(propiedadData.superficie_total, { allowDecimals: true, decimals: 2 });
+      if ('superficie_cubierta' in propiedadData) propiedadData.superficie_cubierta = toNumber(propiedadData.superficie_cubierta, { allowDecimals: true, decimals: 2 });
+      if ('latitud' in propiedadData) propiedadData.latitud = toNumber(propiedadData.latitud, { allowDecimals: true, decimals: 8 });
+      if ('longitud' in propiedadData) propiedadData.longitud = toNumber(propiedadData.longitud, { allowDecimals: true, decimals: 8 });
+
+      // Asegurar que agente_cargo sea null o entero
+      if (propiedadData.agente_cargo) {
+        propiedadData.agente_cargo = Number(propiedadData.agente_cargo);
+        if (Number.isNaN(propiedadData.agente_cargo)) propiedadData.agente_cargo = null;
+      }
+
       if (propiedadEditar) {
+        console.debug('Enviar propiedad (update):', propiedadData);
         await propiedadService.update(propiedadEditar.id, propiedadData);
         propiedadId = propiedadEditar.id;
         toast.success('Propiedad actualizada exitosamente');
       } else {
+        console.debug('Enviar propiedad (create):', propiedadData);
         const nuevaPropiedad = await propiedadService.create(propiedadData);
         propiedadId = nuevaPropiedad.id;
         toast.success('Propiedad creada exitosamente');
@@ -263,18 +318,57 @@ const PropiedadesPanel = () => {
           }
         }
 
+        // Refrescar la propiedad para traer las imágenes subidas (y mostrar en la vista)
+        try {
+          const propiedadActualizada = await propiedadService.getById(propiedadId);
+          // Actualizar vistas previas con las imágenes reales del servidor
+          if (propiedadActualizada.imagenes && propiedadActualizada.imagenes.length > 0) {
+            const previews = propiedadActualizada.imagenes.map(img => ({ preview: img.imagen, isNew: false, id: img.id }));
+            setImagenesPrevias(previews);
+          }
+        } catch (err) {
+          console.error('No se pudo refrescar propiedad tras subir imágenes:', err);
+        }
+
+        // Limpiar input de archivos si existe
+        if (fileInputRef.current) fileInputRef.current.value = null;
+
         toast.success('Imágenes subidas exitosamente');
       }
 
       setShowModal(false);
       resetForm();
       setPropiedadEditar(null);
+      // Revoke object URLs for previews to avoid memory leaks
+      imagenesPrevias.forEach(img => {
+        if (img.isNew && img.preview && img.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(img.preview);
+        }
+      });
       setImagenesPrevias([]);
       setImagenesSubir([]);
       cargarPropiedades();
     } catch (error) {
-      console.error('Error al guardar propiedad:', error);
-      const errorMsg = error.titulo?.[0] || error.detail || 'Error al guardar la propiedad';
+      // Mostrar respuesta de error con más detalle en consola para debugging
+      const serverData = error?.response?.data;
+      try {
+        console.error('Error al guardar propiedad:', serverData ? JSON.stringify(serverData, null, 2) : error);
+      } catch (e) {
+        console.error('Error al guardar propiedad (no JSON):', serverData || error);
+      }
+      // También loguear status por si interesa
+      if (error?.response?.status) console.error('Status:', error.response.status);
+      const data = error.response?.data;
+      let errorMsg = 'Error al guardar la propiedad';
+
+      if (data) {
+        if (typeof data === 'string') {
+          errorMsg = data;
+        } else if (typeof data === 'object') {
+          errorMsg = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join('; ') : v}`).join(' | ');
+        }
+      }
+
       toast.error(errorMsg);
     } finally {
       setSubmitting(false);
@@ -523,7 +617,7 @@ const PropiedadesPanel = () => {
                       {propiedadVer.imagenes.map((imagen, index) => (
                         <div key={index} className="position-relative">
                           <Image
-                            src={imagen.imagen}
+                            src={ensureAbsoluteUrl(imagen.imagen)}
                             thumbnail
                             style={{ width: '200px', height: '200px', objectFit: 'cover' }}
                           />
@@ -1204,7 +1298,8 @@ const PropiedadesPanel = () => {
                     type="file"
                     multiple
                     accept="image/*"
-                    onChange={handleImagenesChange}
+                      onChange={handleImagenesChange}
+                      ref={fileInputRef}
                   />
                   <Form.Text className="text-muted">
                     Puede seleccionar múltiples imágenes. Máximo 5MB por imagen. La primera será la principal.
@@ -1217,7 +1312,7 @@ const PropiedadesPanel = () => {
                       {imagenesPrevias.map((prev, index) => (
                         <div key={index} className="position-relative">
                           <Image
-                            src={prev.preview}
+                            src={prev.isNew ? prev.preview : ensureAbsoluteUrl(prev.preview)}
                             thumbnail
                             style={{ width: '150px', height: '150px', objectFit: 'cover' }}
                           />

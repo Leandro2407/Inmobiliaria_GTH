@@ -6,6 +6,7 @@ import clienteService from '../../services/clienteService';
 import propiedadService from '../../services/propiedadService';
 import ClientesPanel from '../../components/admin/ClientesPanel';
 import PropiedadesPanel from '../../components/admin/PropiedadesPanel';
+import EmpleadoList from '../../components/admin/EmpleadoList';
 import { TareaList } from '../../components/tareas';
 import tareaService from '../../services/tareaService';
 import VisitaList from '../../components/visitas/VisitaList';
@@ -277,10 +278,11 @@ const Dashboard = () => {
                       </Nav.Link>
                     </Nav.Item>
 
+                    {/* ✅ PESTAÑA DE EMPLEADOS */}
                     <Nav.Item>
-                      <Nav.Link eventKey="pagos" disabled>
-                        <i className="fas fa-dollar-sign me-2"></i>
-                        Pagos
+                      <Nav.Link eventKey="empleados">
+                        <i className="fas fa-users me-2"></i>
+                        Empleados
                       </Nav.Link>
                     </Nav.Item>
                   </Nav>
@@ -390,6 +392,14 @@ const Dashboard = () => {
                       <ContratosPanel />
                     </Card.Body>
                   </Card>
+                </Tab.Pane>
+
+                {/* ✅ PESTAÑA DE EMPLEADOS (lista + acciones) */}
+                <Tab.Pane eventKey="empleados">
+                  <div className="mb-4">
+                    {/* Lista de empleados con acciones */}
+                    <EmpleadoList />
+                  </div>
                 </Tab.Pane>
               </Tab.Content>
             </Col>

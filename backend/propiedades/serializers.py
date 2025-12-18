@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Propiedad, ImagenPropiedad, VideoPropiedad
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 class ImagenPropiedadSerializer(serializers.ModelSerializer):
     """Serializer para imágenes de propiedades"""
@@ -119,6 +120,94 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
         if caracteristicas_list:
             validated_data['caracteristicas'] = '\n'.join(caracteristicas_list)
         return super().create(validated_data)
+
+    def validate(self, attrs):
+        """Normalizar strings vacíos a None y validar agente_cargo"""
+        # Campos numéricos/decimales que pueden venir como '' desde el frontend
+        for key in ['precio_venta', 'precio_alquiler', 'latitud', 'longitud', 'superficie_total', 'superficie_cubierta']:
+            if key in attrs and attrs.get(key) == '':
+                attrs[key] = None
+
+        # Campos integer que pueden venir como ''
+        for key in ['dormitorios', 'banos', 'cocheras', 'antiguedad']:
+            if key in attrs and attrs.get(key) == '':
+                attrs[key] = None
+
+        # Normalizar agente_cargo vacio a None
+        if 'agente_cargo' in attrs and attrs.get('agente_cargo') == '':
+            attrs['agente_cargo'] = None
+
+        # Validar que si se asigna agente_cargo, tenga rol permitido
+        agente = attrs.get('agente_cargo')
+        if agente is not None:
+            try:
+                # `agente` puede ser instancia o PK según el flujo de deserialización
+                usuario = agente if hasattr(agente, 'rol') else self.Meta.model._meta.get_field('agente_cargo').related_model.objects.get(pk=agente)
+                if usuario.rol not in ['agente', 'administrador']:
+                    raise serializers.ValidationError({'agente_cargo': 'El usuario asignado no es un agente ni administrador.'})
+            except Exception:
+                raise serializers.ValidationError({'agente_cargo': 'Agente no válido.'})
+
+        # Validar latitud/longitud: rango y precisión
+        for coord in ['latitud', 'longitud']:
+            if coord in attrs and attrs.get(coord) is not None:
+                val = attrs[coord]
+                try:
+                    dec = Decimal(str(val))
+                except (InvalidOperation, ValueError):
+                    raise serializers.ValidationError({coord: 'Valor de coordenada no válido.'})
+
+                # Rango
+                if coord == 'latitud':
+                    if dec < Decimal('-90') or dec > Decimal('90'):
+                        raise serializers.ValidationError({coord: 'La latitud debe estar entre -90 y 90.'})
+                else:
+                    if dec < Decimal('-180') or dec > Decimal('180'):
+                        raise serializers.ValidationError({coord: 'La longitud debe estar entre -180 y 180.'})
+
+                # Redondear/quantize a 8 decimales para cumplir con max_digits/decimal_places
+                try:
+                    dec = dec.quantize(Decimal('0.00000001'), rounding=ROUND_HALF_UP)
+                except InvalidOperation:
+                    raise serializers.ValidationError({coord: 'La coordenada tiene demasiada precisión.'})
+
+                # Asignar el valor normalizado
+                attrs[coord] = dec
+
+        return attrs
+
+    def validate_agente_cargo(self, value):
+        """Validar y normalizar el campo agente_cargo.
+
+        Acepta: None, instancia Usuario, o PK (int o string numérica).
+        Devuelve instancia Usuario o None.
+        """
+        if value in ['', None]:
+            return None
+
+        Usuario = self.Meta.model._meta.get_field('agente_cargo').related_model
+
+        # Si ya es instancia
+        if hasattr(value, 'rol'):
+            if value.rol not in ['agente', 'administrador']:
+                raise serializers.ValidationError('El usuario asignado no es un agente ni administrador.')
+            return value
+
+        # Si viene como PK (string o int)
+        try:
+            pk = int(value)
+        except Exception:
+            raise serializers.ValidationError('Agente no válido.')
+
+        try:
+            usuario = Usuario.objects.get(pk=pk)
+        except Usuario.DoesNotExist:
+            raise serializers.ValidationError('Agente no válido.')
+
+        if usuario.rol not in ['agente', 'administrador']:
+            raise serializers.ValidationError('El usuario asignado no es un agente ni administrador.')
+
+        return usuario
     
     def update(self, instance, validated_data):
         caracteristicas_list = validated_data.pop('caracteristicas_list', None)

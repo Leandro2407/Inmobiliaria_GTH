@@ -1,5 +1,6 @@
 // src/pages/Home.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Form, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import '../styles/Home.css';
@@ -11,7 +12,10 @@ const Home = () => {
     categoria: '',
     barrio: '',
     zona: '',
+    search: '',
   });
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -28,9 +32,46 @@ const Home = () => {
     });
   };
 
+  // Debounced suggestions
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      const term = searchFilters.search?.trim();
+      if (!term || term.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+      setLoadingSuggestions(true);
+      try {
+        const params = { search: term };
+        if (searchFilters.tipo) params.tipo = searchFilters.tipo;
+        if (searchFilters.categoria) params.operacion = searchFilters.categoria;
+        if (searchFilters.barrio) params.barrio = searchFilters.barrio;
+        if (searchFilters.zona) params.zona = searchFilters.zona;
+
+        const data = await propiedadService.getPublicas(params);
+        const results = Array.isArray(data) ? data : data.results || [];
+        setSuggestions(results.slice(0, 6));
+      } catch (error) {
+        console.error('Error cargando sugerencias:', error);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [searchFilters.search, searchFilters.tipo, searchFilters.categoria, searchFilters.barrio, searchFilters.zona]);
+
   const handleSearch = (e) => {
     e.preventDefault();
-    loadProperties();
+    // Redirigir a la página de propiedades con los filtros en la query
+    const params = new URLSearchParams();
+    if (searchFilters.tipo) params.set('tipo', searchFilters.tipo);
+    if (searchFilters.categoria) params.set('operacion', searchFilters.categoria);
+    if (searchFilters.barrio) params.set('barrio', searchFilters.barrio);
+    if (searchFilters.zona) params.set('zona', searchFilters.zona);
+    if (searchFilters.search?.trim()) params.set('search', searchFilters.search.trim());
+
+    navigate(`/propiedades?${params.toString()}`);
   };
 
   const loadProperties = async () => {
@@ -56,17 +97,52 @@ const Home = () => {
     loadProperties();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const navigate = useNavigate();
 
   // Obtener imagen principal o primera imagen
   const getPropertyImage = (property) => {
     if (property.imagen_principal) {
-      return property.imagen_principal;
+      return property.imagen_principal.startsWith('http') ? property.imagen_principal : `${process.env.REACT_APP_API_URL}${property.imagen_principal}`;
     }
     if (property.imagenes && property.imagenes.length > 0) {
       const principalImg = property.imagenes.find(img => img.es_principal);
-      return principalImg ? principalImg.imagen : property.imagenes[0].imagen;
+      const imgUrl = principalImg ? principalImg.imagen : property.imagenes[0].imagen;
+      return imgUrl && imgUrl.startsWith('http') ? imgUrl : `${process.env.REACT_APP_API_URL}${imgUrl}`;
     }
     return 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad';
+  };
+
+  const escapeRegExp = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
+  const escapeHtml = (unsafe = '') => {
+    return unsafe
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  const renderHighlighted = (text = '', term = '') => {
+    if (!term) return text;
+    try {
+      const safeText = escapeHtml(text);
+      const re = new RegExp(`(${escapeRegExp(term)})`, 'ig');
+      return safeText.replace(re, '<mark>$1</mark>');
+    } catch (e) {
+      return escapeHtml(text);
+    }
+  };
+
+  const formatSuggestionPrice = (p) => {
+    const precio = p.precio || p.precio_venta || p.precio_alquiler || null;
+    const moneda = p.moneda || 'ARS';
+    if (!precio) return '';
+    const amt = typeof precio === 'number' ? precio : Number(precio);
+    if (Number.isNaN(amt)) return '';
+    return `${moneda === 'USD' ? 'U$S' : '$'} ${formatNumber(amt)}`;
   };
 
   return (
@@ -85,6 +161,7 @@ const Home = () => {
                   <h5 className="text-dark mb-4">Búsqueda avanzada</h5>
                   <Form onSubmit={handleSearch}>
                     <Row className="g-3">
+                      {/* Filters above the search input per request */}
                       <Col md={3}>
                         <Form.Label className="text-dark">Tipo</Form.Label>
                         <Form.Select
@@ -135,11 +212,41 @@ const Home = () => {
                           <option value="centro">Centro</option>
                         </Form.Select>
                       </Col>
+
+                      <Col md={12}>
+                        <Form.Control
+                          type="text"
+                          placeholder="Buscar por título..."
+                          name="search"
+                          value={searchFilters.search}
+                          onChange={handleFilterChange}
+                        />
+
+                        {suggestions.length > 0 && (
+                          <div className="suggestions-list bg-white rounded mt-1 p-2 shadow-sm" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                            {suggestions.map(s => (
+                              <div key={s.id} className="suggestion-item d-flex align-items-center py-2" style={{ cursor: 'pointer' }} onClick={() => navigate(`/propiedades/${s.id}`)}>
+                                <div className="suggestion-thumb me-3">
+                                  <img src={getPropertyImage(s)} alt={s.titulo} style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 6 }} />
+                                </div>
+                                <div className="flex-grow-1">
+                                  <div className="suggestion-title fw-semibold" dangerouslySetInnerHTML={{ __html: renderHighlighted(s.titulo, searchFilters.search) }} />
+                                  <div className="text-muted small">{s.barrio} • {s.zona}</div>
+                                </div>
+                                <div className="text-end ms-3">
+                                  <div className="text-primary fw-bold">{formatSuggestionPrice(s)}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </Col>
+                      
                     </Row>
                     <div className="text-center mt-4">
                       <Button variant="dark" size="lg" className="px-5" type="submit">
                         <i className="fas fa-search me-2"></i>
-                        Buscar
+                        Ver propiedades
                       </Button>
                     </div>
                   </Form>
@@ -276,7 +383,8 @@ const Home = () => {
             </Col>
           </Row>
 
-          <Row className="g-4">
+          {/* Modificado: justify-content-center para centrar los 2 servicios */}
+          <Row className="justify-content-center g-4">
             <Col md={4}>
               <Card className="text-center border-0 shadow-sm h-100">
                 <Card.Body className="p-4">
@@ -295,17 +403,6 @@ const Home = () => {
                   <Card.Title className="fw-bold">Alquileres</Card.Title>
                   <Card.Text className="text-muted">
                     Encontramos el inquilino ideal y gestionamos todos los trámites
-                  </Card.Text>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={4}>
-              <Card className="text-center border-0 shadow-sm h-100">
-                <Card.Body className="p-4">
-                  <i className="fas fa-calculator fa-3x text-dark mb-3"></i>
-                  <Card.Title className="fw-bold">Tasaciones</Card.Title>
-                  <Card.Text className="text-muted">
-                    Valuaciones precisas y actualizadas del mercado inmobiliario
                   </Card.Text>
                 </Card.Body>
               </Card>

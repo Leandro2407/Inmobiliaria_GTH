@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Row, Col, Badge, Spinner, Tab, Tabs, ListGroup } from 'react-bootstrap';
+import { Card, Button, Row, Col, Badge, Spinner, Tab, Tabs, ListGroup, Image } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import clienteService from '../../services/clienteService';
+import contratoService from '../../services/contratoService';
 
 // Componentes para gestión de visitas
 import VisitaList from '../../components/visitas/VisitaList';
@@ -19,6 +20,8 @@ const SeguimientoClienteDetalle = () => {
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('perfil');
+  const [contratos, setContratos] = useState([]);
+  const [loadingContratos, setLoadingContratos] = useState(false);
   
   // Estados para gestión de visitas
   const [showVisitaForm, setShowVisitaForm] = useState(false);
@@ -47,6 +50,25 @@ const SeguimientoClienteDetalle = () => {
       cargarCliente();
     }
   }, [id, navigate]);
+
+  // Cargar contratos del cliente para mostrar propiedades relacionadas en Intereses
+  useEffect(() => {
+    const cargarContratosCliente = async () => {
+      try {
+        setLoadingContratos(true);
+        const data = await contratoService.getByCliente(id);
+        const contratosData = data.results || data || [];
+        setContratos(contratosData);
+      } catch (error) {
+        console.error('Error al cargar contratos del cliente:', error);
+        setContratos([]);
+      } finally {
+        setLoadingContratos(false);
+      }
+    };
+
+    if (id) cargarContratosCliente();
+  }, [id]);
 
   // Función para obtener color del badge según estado del cliente
   const getBadgeColor = (estado) => {
@@ -337,52 +359,67 @@ const SeguimientoClienteDetalle = () => {
                 Preferencias e Intereses
               </h6>
             </Card.Header>
-            <Card.Body className="text-center py-5">
-              <i className="fas fa-search fa-4x text-muted mb-3"></i>
-              <h5 className="text-muted">Preferencias del Cliente</h5>
-              <p className="text-muted">
-                Registra y visualiza los intereses y preferencias específicas de este cliente.
-              </p>
-              <div className="mt-4">
-                <Badge bg="secondary" className="me-2">Tipo de propiedad</Badge>
-                <Badge bg="secondary" className="me-2">Zonas de interés</Badge>
-                <Badge bg="secondary">Características</Badge>
-              </div>
+            <Card.Body>
+              {/* Mostrar propiedades enlazadas a los contratos del cliente */}
+              {loadingContratos ? (
+                <div className="text-center py-4">
+                  <Spinner animation="border" />
+                </div>
+              ) : (
+                <div>
+                  {(!contratos || contratos.length === 0) ? (
+                    <div className="text-center py-5">
+                      <i className="fas fa-search fa-4x text-muted mb-3"></i>
+                      <h5 className="text-muted">No hay contratos con propiedades asociadas</h5>
+                      <p className="text-muted">Los intereses pueden estar vinculados a propiedades a través de los contratos registrados.</p>
+                    </div>
+                  ) : (
+                    <Row className="g-3 justify-content-center">
+                      {contratos.map((c) => {
+                        const prop = c.propiedad_info || c.propiedad || null;
+                        if (!prop) return null;
+                        const propId = prop.id || prop.pk || prop.id_propiedad;
+                        return (
+                          <Col md={8} lg={6} xl={5} key={c.id || propId} className="d-flex justify-content-center">
+                            <Card className="w-100">
+                              {/* Thumbnail (use placeholder if no image) */}
+                              {(() => {
+                                const imagen = prop.imagen_principal || prop.imagenes?.[0]?.imagen || null;
+                                const src = imagen ? (imagen.startsWith('http') ? imagen : `${process.env.REACT_APP_API_URL}${imagen}`) : 'https://via.placeholder.com/400x300?text=Sin+imagen';
+                                return (
+                                  <div style={{ height: 180, overflow: 'hidden' }}>
+                                    <Image
+                                      src={src}
+                                      alt={prop.titulo || 'Imagen propiedad'}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                  </div>
+                                );
+                              })()}
+                              <Card.Body className="text-center">
+                                <h6 className="mb-1">{prop.titulo || prop.direccion || 'Propiedad'}</h6>
+                                <p className="text-muted small mb-2">{prop.direccion || prop.direccion_completa || ''}</p>
+                                <div className="d-flex justify-content-center align-items-center gap-2">
+                                  <Badge bg="secondary">{prop.tipo || ''}</Badge>
+                                  <Badge bg="secondary">{prop.zona || prop.barrio || ''}</Badge>
+                                </div>
+                                <div className="mt-3">
+                                  <Button variant="outline-dark" size="sm" onClick={() => navigate(`/propiedades/${propId}`)}>Ver detalles</Button>
+                                </div>
+                              </Card.Body>
+                            </Card>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  )}
+                </div>
+              )}
             </Card.Body>
           </Card>
         </Tab>
 
-        {/* Pestaña 5: Pagos (antes Timeline) */}
-        <Tab 
-          eventKey="pagos" 
-          title={
-            <span style={{ color: '#000', fontWeight: '500' }}>
-              <i className="fas fa-dollar-sign me-2"></i>
-              Pagos
-            </span>
-          }
-        >
-          <Card>
-            <Card.Header style={{ backgroundColor: '#000', color: 'white' }}>
-              <h6 className="mb-0">
-                <i className="fas fa-dollar-sign me-2"></i>
-                Gestión de Pagos
-              </h6>
-            </Card.Header>
-            <Card.Body className="text-center py-5">
-              <i className="fas fa-credit-card fa-4x text-muted mb-3"></i>
-              <h5 className="text-muted">Historial de Pagos</h5>
-              <p className="text-muted">
-                Consulta y gestiona el historial completo de pagos de este cliente.
-              </p>
-              <div className="mt-4">
-                <Badge bg="secondary" className="me-2">Pagos pendientes</Badge>
-                <Badge bg="secondary" className="me-2">Pagos realizados</Badge>
-                <Badge bg="secondary">Próximos vencimientos</Badge>
-              </div>
-            </Card.Body>
-          </Card>
-        </Tab>
+        {/* Pagos tab removed as requested */}
       </Tabs>
 
       {/* Modales para gestión de visitas */}

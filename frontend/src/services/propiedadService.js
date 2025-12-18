@@ -13,6 +13,7 @@ const propiedadService = {
   getPublicas: async (params = {}) => {
     try {
       const response = await api.get('/propiedades/publicas/', { params });
+      // API returns either array or paginated { results: [...] }
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -75,11 +76,8 @@ const propiedadService = {
 
   subirImagen: async (id, formData) => {
     try {
-      const response = await api.post(`/propiedades/${id}/subir_imagen/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Let axios set the correct multipart boundary header
+      const response = await api.post(`/propiedades/${id}/subir_imagen/`, formData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -88,11 +86,7 @@ const propiedadService = {
 
   subirVideo: async (id, formData) => {
     try {
-      const response = await api.post(`/propiedades/${id}/subir_video/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post(`/propiedades/${id}/subir_video/`, formData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

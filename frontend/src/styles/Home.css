@@ -69,3 +69,30 @@
     height: 200px;
   }
 }
+
+/* Suggestions / Typeahead styles */
+.suggestions-list {
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  z-index: 3000;
+}
+.suggestion-item {
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  align-items: center;
+}
+.suggestion-item:hover {
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(250,250,250,0.06));
+}
+.suggestion-thumb img {
+  display: block;
+  border-radius: 6px;
+}
+.suggestion-title mark {
+  background: #ffe58a;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+.suggestion-item .text-primary {
+  color: #0d6efd !important;
+}

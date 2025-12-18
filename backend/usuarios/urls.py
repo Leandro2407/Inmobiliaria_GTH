@@ -12,6 +12,7 @@ from .views import (
     UserDetailView,
     UserListView,
     AgenteListView, # Importada la nueva vista
+    EmpleadoCreateView,
 )
 
 app_name = 'usuarios'
@@ -38,4 +39,5 @@ urlpatterns = [
     # Listas de usuarios
     path('users/', UserListView.as_view(), name='user_list'), # Solo Staff
     path('agentes/', AgenteListView.as_view(), name='agente_list'), # Público (Para selectores)
+    path('empleados/', EmpleadoCreateView.as_view(), name='empleado_create'), # Solo staff puede crear
 ]

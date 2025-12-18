@@ -21,8 +21,18 @@
 }
 
 .dashboard-nav .nav-link.active {
-  background-color: #212529;
-  color: white;
+  /* Use the same dark tone already present in the app for consistency */
+  background-color: #212529 !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* Ensure focus/active states also use the same dark tone */
+.dashboard-nav .nav-link:focus,
+.dashboard-nav .nav-link.show,
+.dashboard-nav .nav-link.active:focus {
+  background-color: #212529 !important;
+  color: #fff !important;
 }
 
 .dashboard-nav .nav-link i {

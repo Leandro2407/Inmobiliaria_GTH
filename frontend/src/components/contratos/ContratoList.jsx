@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Badge, Spinner, Alert } from 'react-bootstrap';
+import { Table, Button, Badge, Spinner, Alert, Image } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import contratoService from '../../services/contratoService';
 
@@ -81,18 +81,7 @@ const ContratoList = ({ onVerDetalle, onEditarContrato, refreshTrigger, clienteI
     }).format(amount);
   };
 
-  const handleEliminarContrato = async (contratoId) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este contrato?')) {
-      try {
-        await contratoService.delete(contratoId);
-        toast.success('Contrato eliminado correctamente');
-        cargarContratos();
-      } catch (error) {
-        console.error('Error al eliminar contrato:', error);
-        toast.error('Error al eliminar el contrato');
-      }
-    }
-  };
+  // NOTE: eliminar contratos desde el frontend fue deshabilitado por decisión de producto.
 
   const getSafe = (obj, path, defaultValue = 'N/A') => {
     return path.split('.').reduce((acc, key) => {
@@ -165,11 +154,19 @@ const ContratoList = ({ onVerDetalle, onEditarContrato, refreshTrigger, clienteI
                     </small>
                   </td>
                   <td>
-                    {getSafe(contrato, 'propiedad_info.direccion', 'Dirección no disponible')}
-                    <br />
-                    <small className="text-muted">
-                      {getSafe(contrato, 'propiedad_info.ciudad', 'Ciudad no disponible')}
-                    </small>
+                    {(() => {
+                      const prop = contrato.propiedad_info || contrato.propiedad || {};
+                      const imagenUrl = (prop.imagen_principal && (prop.imagen_principal.startsWith('http') ? prop.imagen_principal : `${process.env.REACT_APP_API_URL}${prop.imagen_principal}`)) || (prop.imagenes?.[0]?.imagen && (prop.imagenes[0].imagen.startsWith('http') ? prop.imagenes[0].imagen : `${process.env.REACT_APP_API_URL}${prop.imagenes[0].imagen}`)) || 'https://via.placeholder.com/90x60?text=Sin+imagen';
+                      return (
+                        <div className="d-flex align-items-center">
+                          <Image src={imagenUrl} rounded style={{ width: 90, height: 60, objectFit: 'cover' }} className="me-2" />
+                          <div>
+                            <div>{getSafe(contrato, 'propiedad_info.direccion', 'Dirección no disponible')}</div>
+                            <small className="text-muted">{getSafe(contrato, 'propiedad_info.ciudad', 'Ciudad no disponible')}</small>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td>
                     <span className="text-capitalize">{contrato.tipo || 'No especificado'}</span>
@@ -199,14 +196,7 @@ const ContratoList = ({ onVerDetalle, onEditarContrato, refreshTrigger, clienteI
                       >
                         <i className="fas fa-edit"></i>
                       </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleEliminarContrato(contrato.id)}
-                        title="Eliminar contrato"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </Button>
+                      {/* Eliminar contrato desde el frontend ha sido deshabilitado */}
                     </div>
                   </td>
                 </tr>

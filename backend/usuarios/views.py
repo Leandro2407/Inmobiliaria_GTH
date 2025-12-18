@@ -12,7 +12,8 @@ from .serializers import (
     UsuarioSerializer, RegisterSerializer, CustomTokenObtainPairSerializer,
     ChangePasswordSerializer, ProfileUpdateSerializer,
     PasswordResetRequestSerializer, PasswordResetConfirmSerializer,
-    AgenteSerializer
+    AgenteSerializer,
+    EmpleadoCreateSerializer
 )
 from .models import VerificacionEmail
 
@@ -301,3 +302,22 @@ class AgenteListView(generics.ListAPIView):
             rol__in=['agente', 'administrador'], 
             is_active=True
         ).order_by('first_name', 'last_name')
+
+
+class EmpleadoCreateView(generics.CreateAPIView):
+    """Vista para que el staff cree nuevos empleados (agentes o administradores)"""
+    serializer_class = EmpleadoCreateSerializer
+    permission_classes = (permissions.IsAdminUser,)
+    queryset = Usuario.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        """Override para loggear errores de validación y facilitar debugging"""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            # Loggear para revisar en consola del servidor
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("EmpleadoCreateView - datos inválidos: %s -- payload: %s", serializer.errors, request.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        return super().create(request, *args, **kwargs)

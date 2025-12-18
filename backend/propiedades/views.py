@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
+from django.db.models import Q
 from .models import Propiedad, ImagenPropiedad, VideoPropiedad
 from .serializers import (
     PropiedadSerializer, PropiedadListSerializer,
@@ -39,6 +40,17 @@ class PropiedadViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(creado_por=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        """Override para loggear errores de validación y facilitar debugging"""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("PropiedadCreate - datos inválidos: %s -- payload: %s", serializer.errors, request.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        return super().create(request, *args, **kwargs)
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -69,6 +81,7 @@ class PropiedadViewSet(viewsets.ModelViewSet):
         operacion = request.query_params.get('operacion')
         zona = request.query_params.get('zona')
         barrio = request.query_params.get('barrio')
+        search = request.query_params.get('search')
         
         if tipo:
             propiedades = propiedades.filter(tipo=tipo)
@@ -78,6 +91,13 @@ class PropiedadViewSet(viewsets.ModelViewSet):
             propiedades = propiedades.filter(zona=zona)
         if barrio:
             propiedades = propiedades.filter(barrio=barrio)
+        if search:
+            propiedades = propiedades.filter(
+                Q(titulo__icontains=search) |
+                Q(descripcion__icontains=search) |
+                Q(direccion__icontains=search) |
+                Q(barrio__icontains=search)
+            )
         
         page = self.paginate_queryset(propiedades)
         if page is not None:

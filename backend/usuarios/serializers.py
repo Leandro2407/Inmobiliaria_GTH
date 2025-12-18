@@ -235,6 +235,48 @@ class EmpleadoProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'email', 'username', 'date_joined', 'rol']
 
 
+class EmpleadoCreateSerializer(serializers.ModelSerializer):
+    """Serializer para que el staff cree empleados (agente/administrador)"""
+
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password], style={'input_type': 'password'})
+    password2 = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+
+    class Meta:
+        model = Usuario
+        fields = ['email', 'username', 'first_name', 'last_name', 'telefono', 'rol', 'password', 'password2']
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password2']:
+            raise serializers.ValidationError({"password": "Las contraseñas no coinciden."})
+        return attrs
+
+    def validate_rol(self, value):
+        """Permitir solo crear empleados como agente o administrador desde el panel"""
+        if value not in ['agente', 'administrador']:
+            raise serializers.ValidationError("El rol debe ser 'agente' o 'administrador'.")
+        return value
+
+    def create(self, validated_data):
+        validated_data.pop('password2')
+        password = validated_data.pop('password')
+        rol = validated_data.get('rol', 'agente')
+
+        is_staff_flag = True if rol == 'administrador' else False
+
+        user = Usuario.objects.create_user(
+            email=validated_data.get('email'),
+            username=validated_data.get('username'),
+            password=password,
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            telefono=validated_data.get('telefono', ''),
+            rol=rol,
+            is_staff=is_staff_flag,
+        )
+
+        return user
+
+
 class ClienteProfileSerializer(serializers.ModelSerializer):
     """Serializer para perfil de clientes"""
     
