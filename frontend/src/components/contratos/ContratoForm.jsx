@@ -149,7 +149,13 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         toast.success('Contrato creado correctamente');
       }
 
-      onSuccess();
+      // ✅ FIX: Cerrar modal ANTES de ejecutar onSuccess para evitar conflicto DOM
+      onHide();
+      
+      // Esperar a que Bootstrap termine la transición del modal (300ms min)
+      setTimeout(() => {
+        onSuccess();
+      }, 350);
     } catch (error) {
       console.error('❌ Error al guardar contrato:', error);
       console.error('Detalles del error:', error.response?.data);

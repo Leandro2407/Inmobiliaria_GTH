@@ -1,5 +1,5 @@
 // src/components/admin/PropiedadesPanel.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Button, Table, Form, Row, Col, Modal, Badge, Spinner, Image } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { Formik } from 'formik';
@@ -60,6 +60,8 @@ const PropiedadesPanel = () => {
   const [propiedadEliminar, setPropiedadEliminar] = useState(null);
   const [imagenesPrevias, setImagenesPrevias] = useState([]);
   const fileInputRef = React.useRef(null);
+  // ✅ FIX: useRef para que handleSubmit siempre lea el valor actualizado de imagenesPrevias
+  const imagenesPreviasRef = useRef([]);
   const [filtros, setFiltros] = useState({
     search: '',
     tipo: '',
@@ -159,7 +161,12 @@ const PropiedadesPanel = () => {
       };
     });
 
-    setImagenesPrevias(prev => [...prev, ...previews]);
+    // ✅ FIX: actualizar tanto el estado como el ref
+    setImagenesPrevias(prev => {
+      const nuevas = [...prev, ...previews];
+      imagenesPreviasRef.current = nuevas;
+      return nuevas;
+    });
     toast.info(`${previews.length} imagen(es) cargada(s)`);
   };
 
@@ -188,6 +195,7 @@ const PropiedadesPanel = () => {
     setImagenesPrevias(prev => {
       const newPreviews = [...prev];
       newPreviews.splice(index, 1);
+      imagenesPreviasRef.current = newPreviews;
       return newPreviews;
     });
   };
@@ -276,9 +284,9 @@ const PropiedadesPanel = () => {
         return;
       }
 
-      // Subir las imágenes reales al servidor
-      const imagenesNuevas = imagenesPrevias.filter(img => img.isNew && img.file);
-      console.log('imagenesPrevias estado antes de upload:', imagenesPrevias);
+      // ✅ FIX: leer del ref para evitar stale closure con imagenesPrevias
+      const imagenesNuevas = imagenesPreviasRef.current.filter(img => img.isNew && img.file);
+      console.log('imagenesPreviasRef antes de upload:', imagenesPreviasRef.current);
       console.log('imagenesNuevas a procesar:', imagenesNuevas);
       
       if (imagenesNuevas.length > 0) {
@@ -310,10 +318,15 @@ const PropiedadesPanel = () => {
       }
 
       setShowModal(false);
-      resetForm();
-      setPropiedadEditar(null);
-      setImagenesPrevias([]);
-      cargarPropiedades();
+      
+      // ✅ FIX: Esperar a que Bootstrap termine la transición del modal (300ms min)
+      setTimeout(() => {
+        resetForm();
+        setPropiedadEditar(null);
+        setImagenesPrevias([]);
+        imagenesPreviasRef.current = [];
+        cargarPropiedades();
+      }, 350);
     } catch (error) {
       const serverData = error?.response?.data;
       try {
@@ -371,16 +384,18 @@ const PropiedadesPanel = () => {
         caracteristicas_list: caracteristicasArray,
       });
 
-      // Cargar imágenes existentes
+      // FIX: Cargar imagenes existentes y sincronizar el ref
       if (propiedadCompleta.imagenes && propiedadCompleta.imagenes.length > 0) {
-        const previews = propiedadCompleta.imagenes.map(img => ({
-          preview: img.imagen,
-          isNew: false,
-          id: img.id
-        }));
+        const previews = propiedadCompleta.imagenes.map(img => {
+          const url = img.imagen || '';
+          const previewUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
+          return { preview: previewUrl, imagen: url, isNew: false, id: img.id };
+        });
         setImagenesPrevias(previews);
+        imagenesPreviasRef.current = previews;
       } else {
         setImagenesPrevias([]);
+        imagenesPreviasRef.current = [];
       }
 
       setShowModal(true);
@@ -1311,6 +1326,7 @@ const PropiedadesPanel = () => {
                     onClick={() => {
                       setShowModal(false);
                       setImagenesPrevias([]);
+                      imagenesPreviasRef.current = [];
                     }}
                   >
                     Cancelar

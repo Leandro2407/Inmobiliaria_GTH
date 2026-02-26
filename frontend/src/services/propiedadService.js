@@ -73,13 +73,22 @@ const propiedadService = {
     }
   },
 
+  // ✅ FIX CRÍTICO: NO especificar Content-Type en multipart/form-data.
+  // Axios necesita generarlo automáticamente para incluir el 'boundary' correcto.
+  // Si se pone 'Content-Type': 'multipart/form-data' manualmente, el boundary
+  // no se genera y Django no puede parsear el archivo → imagen nunca se guarda.
   subirImagen: async (id, formData) => {
     try {
-      const response = await api.post(`/propiedades/${id}/subir_imagen/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post(
+        `/propiedades/${id}/subir_imagen/`,
+        formData,
+        {
+          headers: {
+            // ✅ Dejar que axios/browser establezca el Content-Type automáticamente
+            'Content-Type': undefined,
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -88,11 +97,15 @@ const propiedadService = {
 
   subirVideo: async (id, formData) => {
     try {
-      const response = await api.post(`/propiedades/${id}/subir_video/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post(
+        `/propiedades/${id}/subir_video/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': undefined, // ✅ mismo fix para videos
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

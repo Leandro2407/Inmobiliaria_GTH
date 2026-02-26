@@ -5,8 +5,40 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-toastify';
 import authService from '../services/authService';
+import { BACKEND_URL } from '../services/api';
 import { setUser } from '../store/slices/authSlice';
 import '../styles/Perfil.css';
+
+// ✅ FIX CRÍTICO: DefaultAvatar definido FUERA del componente Perfil.
+// Si se define adentro, React lo recrea en cada render y pierde la referencia
+// al nodo del DOM, causando el error "insertBefore / removeChild not a child".
+const DefaultAvatar = ({ themeColors }) => (
+  <div
+    className="d-flex align-items-center justify-content-center mb-3 rounded-circle"
+    style={{
+      width: '150px',
+      height: '150px',
+      margin: '0 auto',
+      background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+      border: `4px solid ${themeColors.highlight}`,
+      cursor: 'pointer',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      transition: 'all 0.3s ease',
+    }}
+    onMouseEnter={(e) => {
+      const el = e.currentTarget;
+      el.style.transform = 'scale(1.05)';
+      el.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)';
+    }}
+    onMouseLeave={(e) => {
+      const el = e.currentTarget;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    }}
+  >
+    <i className="fas fa-user text-white" style={{ fontSize: '4rem' }}></i>
+  </div>
+);
 
 const Perfil = () => {
   const { user } = useSelector((state) => state.auth);
@@ -38,9 +70,9 @@ const Perfil = () => {
   useEffect(() => {
     if (user?.foto_perfil) {
       console.log('🖼️ Cargando foto de perfil del usuario:', user.foto_perfil);
-      const imageUrl = user.foto_perfil.startsWith('http') 
-        ? user.foto_perfil 
-        : `${window.location.origin}${user.foto_perfil}`;
+        const imageUrl = user.foto_perfil.startsWith('http') 
+          ? user.foto_perfil 
+          : `${BACKEND_URL}${user.foto_perfil}`;
       setPreviewImage(imageUrl);
       setImageError(false);
     }
@@ -218,6 +250,7 @@ const Perfil = () => {
       const response = await authService.updateProfile(formData);
       
       console.log('✅ Respuesta del servidor:', response.data);
+      // ✅ FIX: dispatch directo sin setTimeout para evitar re-renders conflictivos
       dispatch(setUser(response.data));
       
       // LIMPIAR: Resetear archivo seleccionado después del éxito
@@ -238,35 +271,7 @@ const Perfil = () => {
     }
   };
 
-  // Componente para avatar por defecto con mejor estilo
-  const DefaultAvatar = () => (
-    <div 
-      className="d-flex align-items-center justify-content-center mb-3 rounded-circle"
-      style={{ 
-        width: '150px', 
-        height: '150px', 
-        margin: '0 auto',
-        background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
-        border: `4px solid ${themeColors.highlight}`,
-        cursor: 'pointer',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        transition: 'all 0.3s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.target.style.transform = 'scale(1.05)';
-        e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)';
-      }}
-      onMouseLeave={(e) => {
-        e.target.style.transform = 'scale(1)';
-        e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-      }}
-    >
-      <i 
-        className="fas fa-user text-white" 
-        style={{ fontSize: '4rem' }}
-      ></i>
-    </div>
-  );
+  // DefaultAvatar fue movido fuera del componente (ver arriba)
 
   if (!user) {
     return (
@@ -354,16 +359,18 @@ const Perfil = () => {
                             }}
                             onError={handleImageError}
                             onMouseEnter={(e) => {
-                              e.target.style.transform = 'scale(1.05)';
-                              e.target.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
+                              const el = e.currentTarget;
+                              el.style.transform = 'scale(1.05)';
+                              el.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.transform = 'scale(1)';
-                              e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+                              const el = e.currentTarget;
+                              el.style.transform = 'scale(1)';
+                              el.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
                             }}
                           />
                         ) : (
-                          <DefaultAvatar />
+                          <DefaultAvatar themeColors={themeColors} />
                         )}
                         
                         <div className="position-absolute bottom-0 end-0 translate-middle">
@@ -382,12 +389,14 @@ const Perfil = () => {
                                 transition: 'all 0.3s ease'
                               }}
                               onMouseEnter={(e) => {
-                                e.target.style.backgroundColor = '#c0392b';
-                                e.target.style.transform = 'scale(1.1)';
+                                const el = e.currentTarget;
+                                el.style.backgroundColor = '#c0392b';
+                                el.style.transform = 'scale(1.1)';
                               }}
                               onMouseLeave={(e) => {
-                                e.target.style.backgroundColor = themeColors.accent;
-                                e.target.style.transform = 'scale(1)';
+                                const el = e.currentTarget;
+                                el.style.backgroundColor = themeColors.accent;
+                                el.style.transform = 'scale(1)';
                               }}
                             >
                               <i className="fas fa-camera"></i>

@@ -125,8 +125,14 @@ const TareaList = () => {
     try {
       console.log('🔄 Creando tarea:', tareaData);
       await tareaService.createTarea(tareaData);
-      await loadTareas();
+      
+      // ✅ FIX: Cerrar modal ANTES de actualizar datos para evitar conflicto DOM
       setShowCreateModal(false);
+      
+      // Esperar a que Bootstrap termine la transición del modal (300ms min)
+      setTimeout(() => {
+        loadTareas();
+      }, 350);
     } catch (err) {
       console.error('Error creando tarea:', err);
       setError('Error al crear la tarea');
@@ -139,9 +145,15 @@ const TareaList = () => {
     try {
       console.log('🔄 Actualizando tarea:', editingTarea.id, tareaData);
       await tareaService.updateTarea(editingTarea.id, tareaData);
-      await loadTareas();
+      
+      // ✅ FIX: Cerrar modal ANTES de actualizar datos para evitar conflicto DOM
       setShowEdit(false);
       setEditingTarea(null);
+      
+      // Esperar a que Bootstrap termine de remover el modal antes de actualizar datos
+      requestAnimationFrame(async () => {
+        await loadTareas();
+      });
     } catch (err) {
       console.error('Error actualizando tarea:', err);
       setError('Error al actualizar la tarea');

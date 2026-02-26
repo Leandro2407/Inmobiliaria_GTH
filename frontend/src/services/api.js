@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-// Determinar BACKEND_URL (sin el segmento /api al final) para usarlo al construir URLs de archivos estáticos
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || (API_URL.replace(/\/api\/?$/, ''));
 
 const api = axios.create({
@@ -15,10 +14,19 @@ export { BACKEND_URL };
 
 api.interceptors.request.use(
   (config) => {
+    // Agregar token de autenticación
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // ✅ FIX CRÍTICO: Si el body es FormData (subida de archivos/imágenes),
+    // eliminar el Content-Type para que axios lo genere automáticamente
+    // con el 'boundary' correcto. Sin esto, Django no puede parsear los archivos.
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => {
@@ -38,7 +46,7 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
-        
+
         if (!refreshToken) {
           localStorage.clear();
           window.location.href = '/';

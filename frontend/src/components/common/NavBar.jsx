@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navbar as BSNavbar, Nav, Container, Dropdown } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { BACKEND_URL } from '../../services/api';
 import { logout } from '../../store/slices/authSlice';
 import AuthModal from '../auth/AuthModal';
 import { toast } from 'react-toastify';
@@ -83,7 +84,7 @@ const Navbar = () => {
                   >
                     {user?.foto_perfil ? (
                       <img
-                        src={user.foto_perfil}
+                        src={user.foto_perfil.startsWith('http') ? user.foto_perfil : `${BACKEND_URL}${user.foto_perfil}`}
                         alt="Perfil"
                         className="rounded-circle me-2"
                         style={{ width: '30px', height: '30px', objectFit: 'cover' }}

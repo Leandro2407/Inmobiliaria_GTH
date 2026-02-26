@@ -268,9 +268,14 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         response = await visitaService.update(visita.id, datosParaEnviar);
         console.log('✅ Respuesta del servidor:', response);
         
-        toast.success('Información de la visita guardada exitosamente');
-        onSuccess();
+        // ✅ FIX: Llamar a onHide primero para cerrar modal correctamente
         onHide();
+        
+        // Esperar a que Bootstrap termine la transición del modal (300ms min)
+        setTimeout(() => {
+          onSuccess();
+          toast.success('Información de la visita guardada exitosamente');
+        }, 350);
       } 
       // Caso 2: Editar visita pendiente (solo fecha y hora)
       else if (esEdicion && visita?.estado === 'pendiente') {
@@ -284,9 +289,14 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         response = await visitaService.update(visita.id, datosParaEnviar);
         console.log('✅ Respuesta del servidor:', response);
         
-        toast.success('Visita actualizada exitosamente');
-        onSuccess();
+        // ✅ FIX: Llamar a onHide primero para cerrar modal correctamente
         onHide();
+        
+        // Esperar a que Bootstrap termine la transición del modal (300ms min)
+        setTimeout(() => {
+          onSuccess();
+          toast.success('Visita actualizada exitosamente');
+        }, 350);
       }
       // Caso 3: Crear nueva visita
       else if (!esEdicion) {
@@ -307,8 +317,14 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         if (response && typeof response === 'object') {
           console.log('✅ Visita creada exitosamente');
           toast.success('Visita agendada exitosamente');
-          onSuccess();
+          
+          // ✅ FIX: Llamar a onHide primero para cerrar modal correctamente
           onHide();
+          
+          // Esperar a que Bootstrap termine la transición del modal (300ms min)
+          setTimeout(() => {
+            onSuccess();
+          }, 350);
         } else {
           console.error('❌ Respuesta inválida:', response);
           throw new Error('Respuesta inválida del servidor');

@@ -141,10 +141,15 @@ const ClientesPanel = ({ onClienteCreado }) => {
         }
       }
       
+      // ✅ FIX: Cerrar modal ANTES de actualizar datos para evitar conflicto DOM
       setShowModal(false);
-      resetForm();
-      setClienteEditar(null);
-      cargarClientes();
+      
+      // Esperar a que Bootstrap termine la transición del modal (300ms min)
+      setTimeout(() => {
+        resetForm();
+        setClienteEditar(null);
+        cargarClientes();
+      }, 350);
     } catch (error) {
       console.error('Error al guardar cliente:', error);
       const errorMsg = error.dni?.[0] || error.email?.[0] || 'Error al guardar el cliente';
@@ -189,9 +194,9 @@ const ClientesPanel = ({ onClienteCreado }) => {
     try {
       await clienteService.delete(clienteEliminar.id);
       toast.success('Cliente eliminado exitosamente');
+      await cargarClientes();
       setShowDeleteModal(false);
       setClienteEliminar(null);
-      cargarClientes();
     } catch (error) {
       console.error('Error al eliminar cliente:', error);
       toast.error('Error al eliminar el cliente');

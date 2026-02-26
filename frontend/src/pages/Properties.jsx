@@ -10,7 +10,7 @@ const Properties = () => {
   const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({
     tipo: '',
-    operacion: '', // Venta/Alquiler
+    operacion: '',
     barrio: '',
     zona: '',
     search: '',
@@ -19,23 +19,21 @@ const Properties = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Leer query params y setear filtros iniciales
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const tipo = params.get('tipo') || '';
-    const operacion = params.get('operacion') || '';
-    const barrio = params.get('barrio') || '';
-    const zona = params.get('zona') || '';
-    const search = params.get('search') || '';
-
-    setFiltros({ tipo, operacion, barrio, zona, search });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setFiltros({
+      tipo: params.get('tipo') || '',
+      operacion: params.get('operacion') || '',
+      barrio: params.get('barrio') || '',
+      zona: params.get('zona') || '',
+      search: params.get('search') || '',
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   const cargarPropiedades = useCallback(async () => {
     try {
       setLoading(true);
-      // Pasamos los filtros al servicio (usar keys esperadas por la API)
       const params = {};
       if (filtros.search) params.search = filtros.search;
       if (filtros.tipo) params.tipo = filtros.tipo;
@@ -60,7 +58,6 @@ const Properties = () => {
     const newFiltros = { ...filtros, [e.target.name]: e.target.value };
     setFiltros(newFiltros);
 
-    // Actualizar query params en URL para que los filtros sean shareables
     const params = new URLSearchParams();
     if (newFiltros.search) params.set('search', newFiltros.search);
     if (newFiltros.tipo) params.set('tipo', newFiltros.tipo);
@@ -72,6 +69,29 @@ const Properties = () => {
     navigate(qs ? `?${qs}` : location.pathname, { replace: true });
   };
 
+  // ✅ FIX: Función centralizada para obtener la URL correcta de la imagen
+  const getImageUrl = (p) => {
+    // PropiedadListSerializer devuelve imagen_principal como URL absoluta
+    if (p.imagen_principal) {
+      const url = p.imagen_principal;
+      if (url.startsWith('http')) return url;
+      return `${BACKEND_URL}${url}`;
+    }
+    // Fallback al array de imágenes
+    if (p.imagenes && p.imagenes.length > 0) {
+      const url = p.imagenes[0].imagen;
+      if (!url) return 'https://via.placeholder.com/400x300';
+      if (url.startsWith('http')) return url;
+      return `${BACKEND_URL}${url}`;
+    }
+    return 'https://via.placeholder.com/400x300';
+  };
+
+  const limpiarFiltros = () => {
+    setFiltros({ tipo: '', operacion: '', barrio: '', zona: '', search: '' });
+    navigate(location.pathname, { replace: true });
+  };
+
   return (
     <Container className="py-5 mt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -79,39 +99,24 @@ const Properties = () => {
         <span className="text-muted">{propiedades.length} resultados</span>
       </div>
 
-      {/* Filtros Simples */}
-      <Row className="mb-5 g-3">
+      {/* Filtros */}
+      <Row className="mb-4 g-3">
         <Col md={3}>
-            <Form.Select name="operacion" value={filtros.operacion} onChange={handleFilterChange}>
-                <option value="">Tipo de Operación</option>
+          <Form.Select name="operacion" value={filtros.operacion} onChange={handleFilterChange}>
+            <option value="">Tipo de Operación</option>
             <option value="venta">Venta</option>
             <option value="alquiler">Alquiler</option>
-            </Form.Select>
+          </Form.Select>
         </Col>
         <Col md={3}>
-            <Form.Select name="tipo" value={filtros.tipo} onChange={handleFilterChange}>
-                <option value="">Tipo de Propiedad</option>
+          <Form.Select name="tipo" value={filtros.tipo} onChange={handleFilterChange}>
+            <option value="">Tipo de Propiedad</option>
             <option value="casa">Casa</option>
             <option value="departamento">Departamento</option>
             <option value="terreno">Terreno</option>
-            </Form.Select>
+          </Form.Select>
         </Col>
-        <Col md={3}>
-          <Form.Control
-            placeholder="Buscar por dirección, título, barrio..."
-            name="search"
-            value={filtros.search}
-            onChange={handleFilterChange}
-          />
-        </Col>
-        <Col md={3} className="d-flex align-items-center">
-          <Button variant="outline-secondary" onClick={() => setFiltros({ tipo: '', operacion: '', barrio: '', zona: '', search: '' })}>Limpiar</Button>
-        </Col>
-      </Row>
-
-      {/* Filtros avanzados */}
-      <Row className="mb-5 g-3">
-        <Col md={3}>
+        <Col md={2}>
           <Form.Select name="zona" value={filtros.zona} onChange={handleFilterChange}>
             <option value="">Zona</option>
             <option value="norte">Norte</option>
@@ -124,42 +129,58 @@ const Properties = () => {
         </Col>
         <Col md={3}>
           <Form.Control
-            placeholder="Barrio"
-            name="barrio"
-            value={filtros.barrio}
+            placeholder="Buscar por título, barrio..."
+            name="search"
+            value={filtros.search}
             onChange={handleFilterChange}
           />
         </Col>
-        <Col md={3} className="d-flex align-items-center">
-          <Button variant="outline-secondary" onClick={() => { setFiltros({ tipo: '', operacion: '', barrio: '', zona: '', search: '' }); navigate(location.pathname, { replace: true }); }}>Limpiar</Button>
+        <Col md={1} className="d-flex align-items-center">
+          <Button variant="outline-secondary" onClick={limpiarFiltros} className="w-100">✕</Button>
         </Col>
       </Row>
 
       {loading ? (
-        <div className="text-center"><Spinner animation="border" /></div>
+        <div className="text-center py-5">
+          <Spinner animation="border" />
+        </div>
+      ) : propiedades.length === 0 ? (
+        <div className="text-center py-5">
+          <p className="text-muted">No se encontraron propiedades con esos filtros.</p>
+          <Button variant="dark" onClick={limpiarFiltros}>Limpiar filtros</Button>
+        </div>
       ) : (
         <Row className="g-4">
           {propiedades.map((p) => (
             <Col lg={4} md={6} key={p.id}>
-              <Card className="h-100 shadow-sm border-0 transition-hover">
+              <Card className="h-100 shadow-sm border-0">
                 <div style={{ height: '250px', overflow: 'hidden', position: 'relative' }}>
-                  <Card.Img 
-                    variant="top" 
-                    src={(p.imagen_principal && (p.imagen_principal.startsWith('http') ? p.imagen_principal : `${BACKEND_URL}${p.imagen_principal}`)) || (p.imagenes?.[0]?.imagen && (p.imagenes[0].imagen.startsWith('http') ? p.imagenes[0].imagen : `${BACKEND_URL}${p.imagenes[0].imagen}`)) || 'https://via.placeholder.com/400x300'}  
+                  <Card.Img
+                    variant="top"
+                    src={getImageUrl(p)}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.target.src = 'https://via.placeholder.com/400x300'; }}
                   />
-                    <span className="badge bg-dark position-absolute top-0 end-0 m-3">{p.tipo_operacion}</span>
+                  {/* ✅ FIX: campo correcto es p.operacion */}
+                  <span className="badge bg-dark position-absolute top-0 end-0 m-3 text-capitalize">
+                    {p.operacion}
+                  </span>
                 </div>
                 <Card.Body>
                   <Card.Title className="fw-bold">{p.titulo}</Card.Title>
-                  <p className="text-muted small mb-2"><i className="fas fa-map-marker-alt me-1"></i> {p.direccion}, {p.ciudad}</p>
+                  <p className="text-muted small mb-2">
+                    <i className="fas fa-map-marker-alt me-1"></i>
+                    {p.barrio}
+                  </p>
+                  {/* ✅ FIX: usar precio_display que ya viene formateado del serializer */}
                   <h5 className="fw-bold text-primary my-3">
-                    {p.moneda === 'USD' ? 'U$S' : '$'} {p.precio}
+                    {p.precio_display || 'Consultar'}
                   </h5>
                   <div className="d-flex justify-content-between small text-muted border-top pt-3">
-                    <span><i className="fas fa-ruler-combined"></i> {p.m2_totales} m²</span>
-                    <span><i className="fas fa-bed"></i> {p.dormitorios} dorm</span>
-                    <span><i className="fas fa-bath"></i> {p.banos} baños</span>
+                    {/* ✅ FIX: campo correcto es superficie_total */}
+                    <span><i className="fas fa-ruler-combined me-1"></i> {p.superficie_total} m²</span>
+                    <span><i className="fas fa-bed me-1"></i> {p.dormitorios} dorm</span>
+                    <span><i className="fas fa-bath me-1"></i> {p.banos} baños</span>
                   </div>
                   <Button as={Link} to={`/propiedades/${p.id}`} variant="dark" className="w-100 mt-3">
                     Ver Propiedad
