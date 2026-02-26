@@ -151,15 +151,21 @@ const TareaList = () => {
 
   // Eliminar tarea con confirmación
   const handleDeleteTarea = async (id) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
-      try {
-        console.log('🔄 Eliminando tarea:', id);
-        await tareaService.deleteTarea(id);
-        await loadTareas();
-      } catch (err) {
-        console.error('Error eliminando tarea:', err);
-        setError('Error al eliminar la tarea');
+    try {
+      console.log('🔄 Eliminando tarea:', id);
+      await tareaService.deleteTarea(id);
+      await loadTareas();
+    } catch (err) {
+      console.error('Error eliminando tarea:', err);
+      let errorMessage = 'Error al eliminar la tarea';
+      if (err.response) {
+        errorMessage = `Error ${err.response.status}: ${err.response.data?.detail || (typeof err.response.data === 'string' ? err.response.data : 'Error del servidor')}`;
+      } else if (err.request) {
+        errorMessage = 'No se pudo conectar con el servidor. Verifica que el backend esté ejecutándose en http://localhost:8000';
+      } else {
+        errorMessage = `Error: ${err.message}`;
       }
+      setError(errorMessage);
     }
   };
 

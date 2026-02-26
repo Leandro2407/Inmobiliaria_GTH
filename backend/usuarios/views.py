@@ -288,6 +288,21 @@ class UserListView(generics.ListAPIView):
         return queryset
 
 
+class UserDetailAdminView(generics.RetrieveUpdateDestroyAPIView):
+    """Vista para que el staff pueda ver, editar o eliminar usuarios"""
+    queryset = Usuario.objects.all()
+    serializer_class = UsuarioSerializer
+    permission_classes = (permissions.IsAdminUser,)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # Evitar que un admin se borre a sí mismo accidentalmente
+        if instance.id == request.user.id:
+            return Response({'detail': 'No puedes eliminar tu propio usuario'}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class AgenteListView(generics.ListAPIView):
     """
     Vista PÚBLICA para listar agentes inmobiliarios.

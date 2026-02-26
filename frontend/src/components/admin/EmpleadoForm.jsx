@@ -34,8 +34,8 @@ const EmpleadoForm = ({ onCreated, initialValues: initialPropValues, userId, onC
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
       if (userId) {
-        // Editar usuario existente
-        await api.put(`/auth/users/${userId}/`, values);
+        // Editar usuario existente: usar PATCH para evitar validar campos omitidos
+        await api.patch(`/auth/users/${userId}/`, values);
         toast.success('Empleado actualizado correctamente');
         if (onCreated) onCreated();
       } else {

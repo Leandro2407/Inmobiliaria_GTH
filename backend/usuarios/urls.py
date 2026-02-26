@@ -11,6 +11,7 @@ from .views import (
     VerifyEmailView,
     UserDetailView,
     UserListView,
+    UserDetailAdminView,
     AgenteListView, # Importada la nueva vista
     EmpleadoCreateView,
 )
@@ -38,6 +39,7 @@ urlpatterns = [
     
     # Listas de usuarios
     path('users/', UserListView.as_view(), name='user_list'), # Solo Staff
+    path('users/<int:pk>/', UserDetailAdminView.as_view(), name='user_detail_admin'), # Solo staff puede editar/eliminar
     path('agentes/', AgenteListView.as_view(), name='agente_list'), # Público (Para selectores)
     path('empleados/', EmpleadoCreateView.as_view(), name='empleado_create'), # Solo staff puede crear
 ]

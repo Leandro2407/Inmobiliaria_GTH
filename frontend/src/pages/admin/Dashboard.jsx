@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Row, Col, Card, Nav, Tab } from 'react-bootstrap';
+import { Outlet, useMatch } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import clienteService from '../../services/clienteService';
@@ -27,6 +28,14 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshVisitas, setRefreshVisitas] = useState(0);
   const [refreshSeguimientos, setRefreshSeguimientos] = useState(0);
+
+  // Detectar si la ruta actual corresponde a un detalle de seguimiento de cliente
+  const isSeguimientoDetail = useMatch('/admin/seguimiento-clientes/:id');
+
+  // Si entramos directamente a /admin/seguimiento-clientes/:id, activar la pestaña 'seguimientos'
+  useEffect(() => {
+    if (isSeguimientoDetail) setActiveTab('seguimientos');
+  }, [isSeguimientoDetail]);
 
   // Estado para almacenar estadísticas de la aplicación
   const [estadisticas, setEstadisticas] = useState({
@@ -308,7 +317,7 @@ const Dashboard = () => {
                           {!loading && estadisticas.clientes && (
                             <Row className="mt-4">
                               <Col md={3}>
-                                <Card className="text-center bg-primary text-white">
+                                <Card className="text-center stat-card stat-clientes">
                                   <Card.Body>
                                     <h3>{estadisticas.clientes.total || 0}</h3>
                                     <p className="mb-0">Clientes</p>
@@ -316,7 +325,7 @@ const Dashboard = () => {
                                 </Card>
                               </Col>
                               <Col md={3}>
-                                <Card className="text-center bg-success text-white">
+                                <Card className="text-center stat-card stat-propiedades">
                                   <Card.Body>
                                     <h3>{estadisticas.propiedades.total || 0}</h3>
                                     <p className="mb-0">Propiedades</p>
@@ -324,7 +333,7 @@ const Dashboard = () => {
                                 </Card>
                               </Col>
                               <Col md={3}>
-                                <Card className="text-center bg-warning text-dark">
+                                <Card className="text-center stat-card stat-tareas">
                                   <Card.Body>
                                     <h3>{estadisticas.tareas.total || 0}</h3>
                                     <p className="mb-0">Tareas</p>
@@ -332,7 +341,7 @@ const Dashboard = () => {
                                 </Card>
                               </Col>
                               <Col md={3}>
-                                <Card className="text-center bg-info text-white">
+                                <Card className="text-center stat-card stat-visitas">
                                   <Card.Body>
                                     <h3>{estadisticas.visitas.total || 0}</h3>
                                     <p className="mb-0">Visitas</p>
@@ -382,7 +391,13 @@ const Dashboard = () => {
 
                 {/* Pestaña: Seguimiento de Clientes */}
                 <Tab.Pane eventKey="seguimientos">
-                  <SeguimientoClientesPanel refreshTrigger={refreshSeguimientos} />
+                  {/* Si estamos en detalle de un cliente, renderizamos el Outlet (detalle),
+                      si no, mostramos el listado normal */}
+                  {isSeguimientoDetail ? (
+                    <Outlet />
+                  ) : (
+                    <SeguimientoClientesPanel refreshTrigger={refreshSeguimientos} />
+                  )}
                 </Tab.Pane>
 
                 {/* ✅ PESTAÑA DE CONTRATOS INCORPORADA */}

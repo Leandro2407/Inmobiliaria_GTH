@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Spinner, Image } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Spinner, Image, Badge } from 'react-bootstrap';
 import { useSelector, useDispatch } from 'react-redux';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -23,6 +23,17 @@ const Perfil = () => {
     { value: 'agente_inmobiliario', label: 'Agente Inmobiliario' },
     { value: 'administrador', label: 'Administrador' },
   ];
+
+  // Definir colores para el tema
+  const themeColors = {
+    primary: '#2c3e50', // Azul oscuro elegante
+    secondary: '#34495e', // Azul medio
+    accent: '#e74c3c', // Rojo vibrante
+    success: '#27ae60', // Verde
+    light: '#ecf0f1', // Gris claro
+    dark: '#2c3e50', // Azul oscuro
+    highlight: '#3498db', // Azul brillante
+  };
 
   useEffect(() => {
     if (user?.foto_perfil) {
@@ -227,16 +238,27 @@ const Perfil = () => {
     }
   };
 
-  // Componente para avatar por defecto
+  // Componente para avatar por defecto con mejor estilo
   const DefaultAvatar = () => (
     <div 
-      className="d-flex align-items-center justify-content-center mb-3 rounded-circle bg-dark"
+      className="d-flex align-items-center justify-content-center mb-3 rounded-circle"
       style={{ 
         width: '150px', 
         height: '150px', 
         margin: '0 auto',
-        border: '3px solid #dee2e6',
-        cursor: 'pointer'
+        background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+        border: `4px solid ${themeColors.highlight}`,
+        cursor: 'pointer',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        transition: 'all 0.3s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.transform = 'scale(1.05)';
+        e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.transform = 'scale(1)';
+        e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
       }}
     >
       <i 
@@ -249,21 +271,54 @@ const Perfil = () => {
   if (!user) {
     return (
       <Container className="mt-5 text-center">
-        <Spinner animation="border" />
+        <Spinner 
+          animation="border" 
+          variant="primary"
+          style={{ width: '3rem', height: '3rem', borderWidth: '0.3em' }}
+        />
+        <p className="mt-3" style={{ color: themeColors.primary, fontWeight: '500' }}>
+          Cargando perfil...
+        </p>
       </Container>
     );
   }
 
   return (
-    <Container className="perfil-container mt-5 mb-5">
+    <Container className="mt-5 mb-5" style={{ maxWidth: '1200px' }}>
       <Row className="justify-content-center">
         <Col md={10} lg={8}>
-          <Card className="perfil-card shadow">
-            <Card.Body className="p-4">
-              <h2 className="text-center mb-4">
-                {isEmpleado ? 'Perfil de Empleado' : 'Mi Perfil'}
-              </h2>
-              
+          <Card className="shadow-lg" style={{ 
+            border: 'none', 
+            borderRadius: '20px',
+            overflow: 'hidden',
+            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)'
+          }}>
+            <Card.Header style={{ 
+              background: `linear-gradient(90deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+              borderBottom: 'none',
+              padding: '1.5rem 2rem'
+            }}>
+              <div className="d-flex align-items-center justify-content-between">
+                <h2 className="mb-0 text-white" style={{ fontWeight: '600' }}>
+                  <i className="fas fa-user-circle me-3"></i>
+                  {isEmpleado ? 'Perfil de Empleado' : 'Mi Perfil'}
+                </h2>
+                <Badge 
+                  bg={isEmpleado ? "primary" : "success"}
+                  style={{ 
+                    fontSize: '0.9rem', 
+                    padding: '0.5rem 1rem',
+                    borderRadius: '50px',
+                    fontWeight: '500'
+                  }}
+                >
+                  <i className={isEmpleado ? "fas fa-briefcase me-1" : "fas fa-user-tie me-1"}></i>
+                  {isEmpleado ? 'Empleado' : 'Cliente'}
+                </Badge>
+              </div>
+            </Card.Header>
+            
+            <Card.Body className="p-4 p-md-5">
               <Formik
                 initialValues={isEmpleado ? empleadoInitialValues : clienteInitialValues}
                 validationSchema={isEmpleado ? empleadoSchema : clienteSchema}
@@ -281,298 +336,508 @@ const Perfil = () => {
                   isSubmitting,
                 }) => (
                   <Form onSubmit={handleSubmit}>
-                    {/* Foto de perfil */}
-                    <div className="text-center mb-4">
-                      <div className="profile-image-container">
+                    {/* Foto de perfil con mejor diseño */}
+                    <div className="text-center mb-5">
+                      <div className="profile-image-container position-relative d-inline-block">
                         {previewImage && !imageError ? (
                           <Image
                             src={previewImage}
                             roundedCircle
                             className="profile-image mb-3"
-                            style={{ width: '150px', height: '150px', objectFit: 'cover' }}
+                            style={{ 
+                              width: '160px', 
+                              height: '160px', 
+                              objectFit: 'cover',
+                              border: `5px solid ${themeColors.light}`,
+                              boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                              transition: 'all 0.3s ease'
+                            }}
                             onError={handleImageError}
+                            onMouseEnter={(e) => {
+                              e.target.style.transform = 'scale(1.05)';
+                              e.target.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.transform = 'scale(1)';
+                              e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+                            }}
                           />
                         ) : (
                           <DefaultAvatar />
                         )}
+                        
+                        <div className="position-absolute bottom-0 end-0 translate-middle">
+                          <Form.Group>
+                            <Form.Label 
+                              className="btn btn-sm d-flex align-items-center justify-content-center"
+                              style={{ 
+                                backgroundColor: themeColors.accent,
+                                color: 'white',
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                border: 'none',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 10px rgba(231, 76, 60, 0.3)',
+                                transition: 'all 0.3s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.backgroundColor = '#c0392b';
+                                e.target.style.transform = 'scale(1.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = themeColors.accent;
+                                e.target.style.transform = 'scale(1)';
+                              }}
+                            >
+                              <i className="fas fa-camera"></i>
+                              <Form.Control
+                                type="file"
+                                accept="image/jpeg,image/png,image/jpg,image/gif"
+                                onChange={handleImageChange}
+                                style={{ display: 'none' }}
+                              />
+                            </Form.Label>
+                          </Form.Group>
+                        </div>
                       </div>
                       
-                      <Form.Group>
-                        <Form.Label 
-                          className="btn btn-outline-dark btn-sm"
-                          style={{ 
-                            borderColor: '#000', 
-                            color: '#000',
-                            transition: 'all 0.3s ease',
-                            cursor: 'pointer'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = '#000';
-                            e.target.style.color = '#fff';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = 'transparent';
-                            e.target.style.color = '#000';
-                          }}
-                        >
-                          {selectedFile ? 'Cambiar Foto' : 'Seleccionar Foto'}
-                          <Form.Control
-                            type="file"
-                            accept="image/jpeg,image/png,image/jpg,image/gif"
-                            onChange={handleImageChange}
-                            style={{ display: 'none' }}
-                          />
-                        </Form.Label>
-                      </Form.Group>
-                      
                       {selectedFile && (
-                        <div className="text-success small mt-2">
-                          ✅ Archivo seleccionado: {selectedFile.name}
+                        <div className="mt-3 animate__animated animate__fadeIn">
+                          <Badge 
+                            bg="success" 
+                            className="px-3 py-2"
+                            style={{ 
+                              borderRadius: '50px',
+                              fontSize: '0.85rem',
+                              fontWeight: '500'
+                            }}
+                          >
+                            <i className="fas fa-check-circle me-2"></i>
+                            Archivo seleccionado: {selectedFile.name.substring(0, 20)}...
+                          </Badge>
                         </div>
                       )}
                       
                       {imageError && (
-                        <div className="text-danger small mt-2">
-                          ❌ Error al cargar la imagen
+                        <div className="text-danger small mt-2 animate__animated animate__shakeX">
+                          <i className="fas fa-exclamation-triangle me-1"></i>
+                          Error al cargar la imagen
                         </div>
                       )}
+                      
+                      <p className="text-muted mt-3" style={{ fontSize: '0.9rem' }}>
+                        Haz clic en la cámara para cambiar tu foto de perfil
+                      </p>
                     </div>
 
-                    {/* Campos comunes */}
-                    <Row>
-                      <Col md={6}>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Nombre *</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="first_name"
-                            value={values.first_name}
-                            onChange={(e) => {
-                              const filteredValue = validateOnlyLetters(e.target.value);
-                              setFieldValue('first_name', filteredValue);
-                            }}
-                            onBlur={handleBlur}
-                            isInvalid={touched.first_name && errors.first_name}
-                            placeholder="Solo letras y espacios"
-                          />
-                          <Form.Control.Feedback type="invalid">
-                            {errors.first_name}
-                          </Form.Control.Feedback>
-                        </Form.Group>
-                      </Col>
+                    {/* Campos comunes con mejor diseño */}
+                    <div className="mb-4">
+                      <h5 className="mb-4" style={{ 
+                        color: themeColors.primary,
+                        borderBottom: `2px solid ${themeColors.light}`,
+                        paddingBottom: '0.5rem',
+                        fontWeight: '600'
+                      }}>
+                        <i className="fas fa-id-card me-2"></i>
+                        Información Personal
+                      </h5>
+                      
+                      <Row>
+                        <Col md={6}>
+                          <Form.Group className="mb-4">
+                            <Form.Label className="fw-semibold">
+                              <i className="fas fa-user me-2 text-primary"></i>
+                              Nombre *
+                            </Form.Label>
+                            <Form.Control
+                              type="text"
+                              name="first_name"
+                              value={values.first_name}
+                              onChange={(e) => {
+                                const filteredValue = validateOnlyLetters(e.target.value);
+                                setFieldValue('first_name', filteredValue);
+                              }}
+                              onBlur={handleBlur}
+                              isInvalid={touched.first_name && errors.first_name}
+                              placeholder="Ingresa tu nombre"
+                              className="py-2"
+                              style={{ 
+                                borderRadius: '10px',
+                                border: `1px solid ${touched.first_name && errors.first_name ? themeColors.accent : '#dee2e6'}`,
+                                transition: 'all 0.3s ease'
+                              }}
+                            />
+                            {touched.first_name && errors.first_name && (
+                              <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                <small style={{ color: themeColors.accent }}>{errors.first_name}</small>
+                              </div>
+                            )}
+                          </Form.Group>
+                        </Col>
 
-                      <Col md={6}>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Apellido *</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="last_name"
-                            value={values.last_name}
-                            onChange={(e) => {
-                              const filteredValue = validateOnlyLetters(e.target.value);
-                              setFieldValue('last_name', filteredValue);
-                            }}
-                            onBlur={handleBlur}
-                            isInvalid={touched.last_name && errors.last_name}
-                            placeholder="Solo letras y espacios"
-                          />
-                          <Form.Control.Feedback type="invalid">
-                            {errors.last_name}
-                          </Form.Control.Feedback>
-                        </Form.Group>
-                      </Col>
-                    </Row>
+                        <Col md={6}>
+                          <Form.Group className="mb-4">
+                            <Form.Label className="fw-semibold">
+                              <i className="fas fa-user me-2 text-primary"></i>
+                              Apellido *
+                            </Form.Label>
+                            <Form.Control
+                              type="text"
+                              name="last_name"
+                              value={values.last_name}
+                              onChange={(e) => {
+                                const filteredValue = validateOnlyLetters(e.target.value);
+                                setFieldValue('last_name', filteredValue);
+                              }}
+                              onBlur={handleBlur}
+                              isInvalid={touched.last_name && errors.last_name}
+                              placeholder="Ingresa tu apellido"
+                              className="py-2"
+                              style={{ 
+                                borderRadius: '10px',
+                                border: `1px solid ${touched.last_name && errors.last_name ? themeColors.accent : '#dee2e6'}`,
+                                transition: 'all 0.3s ease'
+                              }}
+                            />
+                            {touched.last_name && errors.last_name && (
+                              <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                <small style={{ color: themeColors.accent }}>{errors.last_name}</small>
+                              </div>
+                            )}
+                          </Form.Group>
+                        </Col>
+                      </Row>
 
-                    <Form.Group className="mb-3">
-                      <Form.Label>Correo Electrónico *</Form.Label>
-                      <Form.Control
-                        type="email"
-                        name="email"
-                        value={values.email}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        isInvalid={touched.email && errors.email}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.email}
-                      </Form.Control.Feedback>
-                    </Form.Group>
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-semibold">
+                          <i className="fas fa-envelope me-2 text-primary"></i>
+                          Correo Electrónico *
+                        </Form.Label>
+                        <Form.Control
+                          type="email"
+                          name="email"
+                          value={values.email}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          isInvalid={touched.email && errors.email}
+                          placeholder="ejemplo@correo.com"
+                          className="py-2"
+                          style={{ 
+                            borderRadius: '10px',
+                            border: `1px solid ${touched.email && errors.email ? themeColors.accent : '#dee2e6'}`,
+                            transition: 'all 0.3s ease'
+                          }}
+                        />
+                        {touched.email && errors.email && (
+                          <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                            <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                            <small style={{ color: themeColors.accent }}>{errors.email}</small>
+                          </div>
+                        )}
+                      </Form.Group>
 
-                    <Form.Group className="mb-3">
-                      <Form.Label>Número de Teléfono</Form.Label>
-                      <Form.Control
-                        type="tel"
-                        name="telefono"
-                        placeholder="+54 9 1234-5678"
-                        value={values.telefono}
-                        onChange={(e) => {
-                          const formattedValue = formatPhoneNumber(e.target.value);
-                          setFieldValue('telefono', formattedValue);
-                        }}
-                        onBlur={handleBlur}
-                        isInvalid={touched.telefono && errors.telefono}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.telefono}
-                      </Form.Control.Feedback>
-                      <Form.Text className="text-muted">
-                        Solo números y caracteres telefónicos (+, -, espacios)
-                      </Form.Text>
-                    </Form.Group>
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-semibold">
+                          <i className="fas fa-phone me-2 text-primary"></i>
+                          Número de Teléfono
+                        </Form.Label>
+                        <Form.Control
+                          type="tel"
+                          name="telefono"
+                          placeholder="+54 9 1234-5678"
+                          value={values.telefono}
+                          onChange={(e) => {
+                            const formattedValue = formatPhoneNumber(e.target.value);
+                            setFieldValue('telefono', formattedValue);
+                          }}
+                          onBlur={handleBlur}
+                          isInvalid={touched.telefono && errors.telefono}
+                          className="py-2"
+                          style={{ 
+                            borderRadius: '10px',
+                            border: `1px solid ${touched.telefono && errors.telefono ? themeColors.accent : '#dee2e6'}`,
+                            transition: 'all 0.3s ease'
+                          }}
+                        />
+                        <Form.Text className="text-muted d-flex align-items-center mt-2">
+                          <i className="fas fa-info-circle me-2"></i>
+                          Solo números y caracteres telefónicos (+, -, espacios)
+                        </Form.Text>
+                        {touched.telefono && errors.telefono && (
+                          <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                            <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                            <small style={{ color: themeColors.accent }}>{errors.telefono}</small>
+                          </div>
+                        )}
+                      </Form.Group>
+                    </div>
 
                     {/* Campos específicos para EMPLEADOS */}
                     {isEmpleado && (
                       <>
-                        <Row>
-                          <Col md={6}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>DNI *</Form.Label>
-                              <Form.Control
-                                type="text"
-                                name="dni"
-                                value={values.dni}
-                                onChange={(e) => {
-                                  const filteredValue = validateOnlyNumbers(e.target.value);
-                                  setFieldValue('dni', filteredValue);
-                                }}
-                                onBlur={handleBlur}
-                                isInvalid={touched.dni && errors.dni}
-                                placeholder="Solo números"
-                                maxLength={15}
-                              />
-                              <Form.Control.Feedback type="invalid">
-                                {errors.dni}
-                              </Form.Control.Feedback>
-                            </Form.Group>
-                          </Col>
+                        <div className="mb-4">
+                          <h5 className="mb-4" style={{ 
+                            color: themeColors.primary,
+                            borderBottom: `2px solid ${themeColors.light}`,
+                            paddingBottom: '0.5rem',
+                            fontWeight: '600'
+                          }}>
+                            <i className="fas fa-id-badge me-2"></i>
+                            Información Laboral
+                          </h5>
+                          
+                          <Row>
+                            <Col md={6}>
+                              <Form.Group className="mb-4">
+                                <Form.Label className="fw-semibold">
+                                  <i className="fas fa-address-card me-2 text-primary"></i>
+                                  DNI *
+                                </Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  name="dni"
+                                  value={values.dni}
+                                  onChange={(e) => {
+                                    const filteredValue = validateOnlyNumbers(e.target.value);
+                                    setFieldValue('dni', filteredValue);
+                                  }}
+                                  onBlur={handleBlur}
+                                  isInvalid={touched.dni && errors.dni}
+                                  placeholder="Solo números"
+                                  maxLength={15}
+                                  className="py-2"
+                                  style={{ 
+                                    borderRadius: '10px',
+                                    border: `1px solid ${touched.dni && errors.dni ? themeColors.accent : '#dee2e6'}`,
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                />
+                                {touched.dni && errors.dni && (
+                                  <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                    <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                    <small style={{ color: themeColors.accent }}>{errors.dni}</small>
+                                  </div>
+                                )}
+                              </Form.Group>
+                            </Col>
 
-                          <Col md={6}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Fecha de Nacimiento *</Form.Label>
-                              <Form.Control
-                                type="date"
-                                name="fecha_nacimiento"
-                                value={values.fecha_nacimiento}
-                                onChange={handleChange}
-                                onBlur={handleBlur}
-                                isInvalid={touched.fecha_nacimiento && errors.fecha_nacimiento}
-                              />
-                              <Form.Control.Feedback type="invalid">
-                                {errors.fecha_nacimiento}
-                              </Form.Control.Feedback>
-                            </Form.Group>
-                          </Col>
-                        </Row>
+                            <Col md={6}>
+                              <Form.Group className="mb-4">
+                                <Form.Label className="fw-semibold">
+                                  <i className="fas fa-birthday-cake me-2 text-primary"></i>
+                                  Fecha de Nacimiento *
+                                </Form.Label>
+                                <Form.Control
+                                  type="date"
+                                  name="fecha_nacimiento"
+                                  value={values.fecha_nacimiento}
+                                  onChange={handleChange}
+                                  onBlur={handleBlur}
+                                  isInvalid={touched.fecha_nacimiento && errors.fecha_nacimiento}
+                                  className="py-2"
+                                  style={{ 
+                                    borderRadius: '10px',
+                                    border: `1px solid ${touched.fecha_nacimiento && errors.fecha_nacimiento ? themeColors.accent : '#dee2e6'}`,
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                />
+                                {touched.fecha_nacimiento && errors.fecha_nacimiento && (
+                                  <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                    <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                    <small style={{ color: themeColors.accent }}>{errors.fecha_nacimiento}</small>
+                                  </div>
+                                )}
+                              </Form.Group>
+                            </Col>
+                          </Row>
 
-                        <Form.Group className="mb-3">
-                          <Form.Label>Ciudad *</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="ciudad"
-                            value={values.ciudad}
-                            onChange={(e) => {
-                              const filteredValue = validateOnlyLetters(e.target.value);
-                              setFieldValue('ciudad', filteredValue);
-                            }}
-                            onBlur={handleBlur}
-                            isInvalid={touched.ciudad && errors.ciudad}
-                            placeholder="Solo letras y espacios"
-                          />
-                          <Form.Control.Feedback type="invalid">
-                            {errors.ciudad}
-                          </Form.Control.Feedback>
-                        </Form.Group>
+                          <Form.Group className="mb-4">
+                            <Form.Label className="fw-semibold">
+                              <i className="fas fa-city me-2 text-primary"></i>
+                              Ciudad *
+                            </Form.Label>
+                            <Form.Control
+                              type="text"
+                              name="ciudad"
+                              value={values.ciudad}
+                              onChange={(e) => {
+                                const filteredValue = validateOnlyLetters(e.target.value);
+                                setFieldValue('ciudad', filteredValue);
+                              }}
+                              onBlur={handleBlur}
+                              isInvalid={touched.ciudad && errors.ciudad}
+                              placeholder="Solo letras y espacios"
+                              className="py-2"
+                              style={{ 
+                                borderRadius: '10px',
+                                border: `1px solid ${touched.ciudad && errors.ciudad ? themeColors.accent : '#dee2e6'}`,
+                                transition: 'all 0.3s ease'
+                              }}
+                            />
+                            {touched.ciudad && errors.ciudad && (
+                              <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                <small style={{ color: themeColors.accent }}>{errors.ciudad}</small>
+                              </div>
+                            )}
+                          </Form.Group>
 
-                        <h5 className="mt-4 mb-3">Domicilio</h5>
-                        <Row>
-                          <Col md={4}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Barrio *</Form.Label>
-                              <Form.Control
-                                type="text"
-                                name="barrio"
-                                value={values.barrio}
-                                onChange={handleChange}
-                                onBlur={handleBlur}
-                                isInvalid={touched.barrio && errors.barrio}
-                                placeholder="Letras y números"
-                              />
-                              <Form.Control.Feedback type="invalid">
-                                {errors.barrio}
-                              </Form.Control.Feedback>
-                            </Form.Group>
-                          </Col>
+                          <div className="mb-4">
+                            <h6 className="mb-3" style={{ 
+                              color: themeColors.secondary,
+                              fontWeight: '600'
+                            }}>
+                              <i className="fas fa-home me-2"></i>
+                              Domicilio
+                            </h6>
+                            
+                            <Row>
+                              <Col md={4}>
+                                <Form.Group className="mb-4">
+                                  <Form.Label className="fw-semibold">Barrio *</Form.Label>
+                                  <Form.Control
+                                    type="text"
+                                    name="barrio"
+                                    value={values.barrio}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    isInvalid={touched.barrio && errors.barrio}
+                                    placeholder="Letras y números"
+                                    className="py-2"
+                                    style={{ 
+                                      borderRadius: '10px',
+                                      border: `1px solid ${touched.barrio && errors.barrio ? themeColors.accent : '#dee2e6'}`,
+                                      transition: 'all 0.3s ease'
+                                    }}
+                                  />
+                                  {touched.barrio && errors.barrio && (
+                                    <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                      <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                      <small style={{ color: themeColors.accent }}>{errors.barrio}</small>
+                                    </div>
+                                  )}
+                                </Form.Group>
+                              </Col>
 
-                          <Col md={5}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Calle *</Form.Label>
-                              <Form.Control
-                                type="text"
-                                name="calle"
-                                value={values.calle}
-                                onChange={handleChange}
-                                onBlur={handleBlur}
-                                isInvalid={touched.calle && errors.calle}
-                                placeholder="Letras y números"
-                              />
-                              <Form.Control.Feedback type="invalid">
-                                {errors.calle}
-                              </Form.Control.Feedback>
-                            </Form.Group>
-                          </Col>
+                              <Col md={5}>
+                                <Form.Group className="mb-4">
+                                  <Form.Label className="fw-semibold">Calle *</Form.Label>
+                                  <Form.Control
+                                    type="text"
+                                    name="calle"
+                                    value={values.calle}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    isInvalid={touched.calle && errors.calle}
+                                    placeholder="Letras y números"
+                                    className="py-2"
+                                    style={{ 
+                                      borderRadius: '10px',
+                                      border: `1px solid ${touched.calle && errors.calle ? themeColors.accent : '#dee2e6'}`,
+                                      transition: 'all 0.3s ease'
+                                    }}
+                                  />
+                                  {touched.calle && errors.calle && (
+                                    <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                      <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                      <small style={{ color: themeColors.accent }}>{errors.calle}</small>
+                                    </div>
+                                  )}
+                                </Form.Group>
+                              </Col>
 
-                          <Col md={3}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Numeración *</Form.Label>
-                              <Form.Control
-                                type="text"
-                                name="numeracion"
-                                value={values.numeracion}
-                                onChange={(e) => {
-                                  const filteredValue = validateOnlyNumbers(e.target.value);
-                                  setFieldValue('numeracion', filteredValue);
-                                }}
-                                onBlur={handleBlur}
-                                isInvalid={touched.numeracion && errors.numeracion}
-                                placeholder="Solo números"
-                                maxLength={10}
-                              />
-                              <Form.Control.Feedback type="invalid">
-                                {errors.numeracion}
-                              </Form.Control.Feedback>
-                            </Form.Group>
-                          </Col>
-                        </Row>
+                              <Col md={3}>
+                                <Form.Group className="mb-4">
+                                  <Form.Label className="fw-semibold">Numeración *</Form.Label>
+                                  <Form.Control
+                                    type="text"
+                                    name="numeracion"
+                                    value={values.numeracion}
+                                    onChange={(e) => {
+                                      const filteredValue = validateOnlyNumbers(e.target.value);
+                                      setFieldValue('numeracion', filteredValue);
+                                    }}
+                                    onBlur={handleBlur}
+                                    isInvalid={touched.numeracion && errors.numeracion}
+                                    placeholder="Solo números"
+                                    maxLength={10}
+                                    className="py-2"
+                                    style={{ 
+                                      borderRadius: '10px',
+                                      border: `1px solid ${touched.numeracion && errors.numeracion ? themeColors.accent : '#dee2e6'}`,
+                                      transition: 'all 0.3s ease'
+                                    }}
+                                  />
+                                  {touched.numeracion && errors.numeracion && (
+                                    <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                      <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                      <small style={{ color: themeColors.accent }}>{errors.numeracion}</small>
+                                    </div>
+                                  )}
+                                </Form.Group>
+                              </Col>
+                            </Row>
+                          </div>
 
-                        <Form.Group className="mb-3">
-                          <Form.Label>Puesto *</Form.Label>
-                          <Form.Select
-                            name="puesto"
-                            value={values.puesto}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            isInvalid={touched.puesto && errors.puesto}
-                          >
-                            <option value="">Selecciona un puesto</option>
-                            {/* ✅ MODIFICADO: Solo las 2 opciones solicitadas */}
-                            {puestosOptions.map((puesto) => (
-                              <option key={puesto.value} value={puesto.value}>
-                                {puesto.label}
-                              </option>
-                            ))}
-                          </Form.Select>
-                          <Form.Control.Feedback type="invalid">
-                            {errors.puesto}
-                          </Form.Control.Feedback>
-                        </Form.Group>
+                          <Form.Group className="mb-4">
+                            <Form.Label className="fw-semibold">
+                              <i className="fas fa-briefcase me-2 text-primary"></i>
+                              Puesto *
+                            </Form.Label>
+                            <Form.Select
+                              name="puesto"
+                              value={values.puesto}
+                              onChange={handleChange}
+                              onBlur={handleBlur}
+                              isInvalid={touched.puesto && errors.puesto}
+                              className="py-2"
+                              style={{ 
+                                borderRadius: '10px',
+                                border: `1px solid ${touched.puesto && errors.puesto ? themeColors.accent : '#dee2e6'}`,
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="">Selecciona un puesto</option>
+                              {/* ✅ MODIFICADO: Solo las 2 opciones solicitadas */}
+                              {puestosOptions.map((puesto) => (
+                                <option key={puesto.value} value={puesto.value}>
+                                  {puesto.label}
+                                </option>
+                              ))}
+                            </Form.Select>
+                            {touched.puesto && errors.puesto && (
+                              <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                                <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                                <small style={{ color: themeColors.accent }}>{errors.puesto}</small>
+                              </div>
+                            )}
+                          </Form.Group>
+                        </div>
                       </>
                     )}
 
                     {/* Campos específicos para CLIENTES */}
                     {!isEmpleado && (
-                      <>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Ciudad de Interés</Form.Label>
+                      <div className="mb-4">
+                        <h5 className="mb-4" style={{ 
+                          color: themeColors.primary,
+                          borderBottom: `2px solid ${themeColors.light}`,
+                          paddingBottom: '0.5rem',
+                          fontWeight: '600'
+                        }}>
+                          <i className="fas fa-heart me-2"></i>
+                          Preferencias
+                        </h5>
+                        
+                        <Form.Group className="mb-4">
+                          <Form.Label className="fw-semibold">
+                            <i className="fas fa-map-marker-alt me-2 text-primary"></i>
+                            Ciudad de Interés
+                          </Form.Label>
                           <Form.Control
                             type="text"
                             name="ciudad_interes"
@@ -584,55 +849,82 @@ const Perfil = () => {
                             }}
                             onBlur={handleBlur}
                             isInvalid={touched.ciudad_interes && errors.ciudad_interes}
+                            className="py-2"
+                            style={{ 
+                              borderRadius: '10px',
+                              border: `1px solid ${touched.ciudad_interes && errors.ciudad_interes ? themeColors.accent : '#dee2e6'}`,
+                              transition: 'all 0.3s ease'
+                            }}
                           />
-                          <Form.Control.Feedback type="invalid">
-                            {errors.ciudad_interes}
-                          </Form.Control.Feedback>
+                          {touched.ciudad_interes && errors.ciudad_interes && (
+                            <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                              <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                              <small style={{ color: themeColors.accent }}>{errors.ciudad_interes}</small>
+                            </div>
+                          )}
                         </Form.Group>
 
-                        <Form.Group className="mb-3">
-                          <Form.Label>Intereses</Form.Label>
+                        <Form.Group className="mb-4">
+                          <Form.Label className="fw-semibold">
+                            <i className="fas fa-search me-2 text-primary"></i>
+                            Intereses
+                          </Form.Label>
                           <Form.Select
                             name="intereses"
                             value={values.intereses}
                             onChange={handleChange}
                             onBlur={handleBlur}
                             isInvalid={touched.intereses && errors.intereses}
+                            className="py-2"
+                            style={{ 
+                              borderRadius: '10px',
+                              border: `1px solid ${touched.intereses && errors.intereses ? themeColors.accent : '#dee2e6'}`,
+                              transition: 'all 0.3s ease',
+                              cursor: 'pointer'
+                            }}
                           >
                             <option value="">Selecciona una opción</option>
                             <option value="comprar">Comprar</option>
                             <option value="alquilar">Alquilar</option>
                             <option value="ambos">Ambos</option>
                           </Form.Select>
-                          <Form.Control.Feedback type="invalid">
-                            {errors.intereses}
-                          </Form.Control.Feedback>
-                          <Form.Text className="text-muted">
+                          {touched.intereses && errors.intereses && (
+                            <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
+                              <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
+                              <small style={{ color: themeColors.accent }}>{errors.intereses}</small>
+                            </div>
+                          )}
+                          <Form.Text className="text-muted d-flex align-items-center mt-2">
+                            <i className="fas fa-info-circle me-2"></i>
                             ¿Qué tipo de operación te interesa?
                           </Form.Text>
                         </Form.Group>
-                      </>
+                      </div>
                     )}
 
-                    {/* Botón de guardar */}
-                    <div className="d-grid gap-2 mt-4">
+                    {/* Botón de guardar con mejor estilo */}
+                    <div className="d-grid gap-2 mt-5 pt-3" style={{ borderTop: `1px solid ${themeColors.light}` }}>
                       <Button
-                        variant="dark"
+                        variant="primary"
                         type="submit"
                         size="lg"
                         disabled={isSubmitting || loading}
+                        className="fw-bold py-3"
                         style={{
-                          backgroundColor: '#000',
-                          borderColor: '#000',
-                          transition: 'all 0.3s ease'
+                          background: `linear-gradient(90deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+                          border: 'none',
+                          borderRadius: '12px',
+                          fontSize: '1.1rem',
+                          transition: 'all 0.3s ease',
+                          boxShadow: `0 6px 15px ${themeColors.primary}40`
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = '#333';
-                          e.target.style.borderColor = '#333';
+                          e.target.style.transform = 'translateY(-3px)';
+                          e.target.style.boxShadow = `0 10px 25px ${themeColors.primary}60`;
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = '#000';
-                          e.target.style.borderColor = '#000';
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = `0 6px 15px ${themeColors.primary}40`;
                         }}
                       >
                         {loading ? (
@@ -643,19 +935,41 @@ const Perfil = () => {
                               size="sm"
                               role="status"
                               aria-hidden="true"
-                              className="me-2"
+                              className="me-3"
+                              style={{ width: '1.2rem', height: '1.2rem' }}
                             />
-                            Guardando...
+                            <span className="fw-bold">Guardando Cambios...</span>
                           </>
                         ) : (
-                          'Guardar Cambios'
+                          <>
+                            <i className="fas fa-save me-3"></i>
+                            <span className="fw-bold">Guardar Cambios</span>
+                          </>
                         )}
                       </Button>
+                      
+                      <p className="text-center text-muted mt-3 mb-0" style={{ fontSize: '0.85rem' }}>
+                        <i className="fas fa-shield-alt me-2"></i>
+                        Tus datos están protegidos y solo se usarán para fines administrativos
+                      </p>
                     </div>
                   </Form>
                 )}
               </Formik>
             </Card.Body>
+            
+            {/* Pie de tarjeta */}
+            <Card.Footer className="text-center py-3" style={{ 
+              background: themeColors.light,
+              borderTop: `1px solid ${themeColors.light}`,
+              borderBottomLeftRadius: '20px',
+              borderBottomRightRadius: '20px'
+            }}>
+              <small className="text-muted">
+                <i className="fas fa-history me-2"></i>
+                Última actualización: {new Date().toLocaleDateString()}
+              </small>
+            </Card.Footer>
           </Card>
         </Col>
       </Row>

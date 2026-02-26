@@ -17,7 +17,8 @@ from usuarios.permissions import IsAgenteOrAdmin
 class PropiedadViewSet(viewsets.ModelViewSet):
     """ViewSet para CRUD de propiedades"""
     
-    queryset = Propiedad.objects.all()
+    # prefetch images to avoid N+1 queries al serializar
+    queryset = Propiedad.objects.all().prefetch_related('imagenes')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['tipo', 'operacion', 'estado', 'zona', 'barrio', 'destacada']
     search_fields = ['titulo', 'descripcion', 'direccion', 'barrio']

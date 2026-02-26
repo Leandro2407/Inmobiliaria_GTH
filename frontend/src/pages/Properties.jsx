@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Form, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import propiedadService from '../services/propiedadService';
+import { BACKEND_URL } from '../services/api';
 
 const Properties = () => {
   const [propiedades, setPropiedades] = useState([]);
@@ -144,7 +145,7 @@ const Properties = () => {
                 <div style={{ height: '250px', overflow: 'hidden', position: 'relative' }}>
                   <Card.Img 
                     variant="top" 
-                    src={(p.imagen_principal && (p.imagen_principal.startsWith('http') ? p.imagen_principal : `${process.env.REACT_APP_API_URL}${p.imagen_principal}`)) || (p.imagenes?.[0]?.imagen && (p.imagenes[0].imagen.startsWith('http') ? p.imagenes[0].imagen : `${process.env.REACT_APP_API_URL}${p.imagenes[0].imagen}`)) || 'https://via.placeholder.com/400x300'} 
+                    src={(p.imagen_principal && (p.imagen_principal.startsWith('http') ? p.imagen_principal : `${BACKEND_URL}${p.imagen_principal}`)) || (p.imagenes?.[0]?.imagen && (p.imagenes[0].imagen.startsWith('http') ? p.imagenes[0].imagen : `${BACKEND_URL}${p.imagenes[0].imagen}`)) || 'https://via.placeholder.com/400x300'}  
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                     <span className="badge bg-dark position-absolute top-0 end-0 m-3">{p.tipo_operacion}</span>

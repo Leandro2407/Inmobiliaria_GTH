@@ -5,6 +5,7 @@ import { Container, Row, Col, Card, Button, Form, Spinner } from 'react-bootstra
 import { Link } from 'react-router-dom';
 import '../styles/Home.css';
 import propiedadService from '../services/propiedadService';
+import { BACKEND_URL } from '../services/api';
 
 const Home = () => {
   const [searchFilters, setSearchFilters] = useState({
@@ -101,14 +102,27 @@ const Home = () => {
 
   // Obtener imagen principal o primera imagen
   const getPropertyImage = (property) => {
+    // Primero intentar con imagen_principal
     if (property.imagen_principal) {
-      return property.imagen_principal.startsWith('http') ? property.imagen_principal : `${process.env.REACT_APP_API_URL}${property.imagen_principal}`;
+      const url = property.imagen_principal;
+      if (url.startsWith('http')) return url;
+      return `${BACKEND_URL}${url}`;
     }
-    if (property.imagenes && property.imagenes.length > 0) {
+    
+    // Luego intentar con el array de imágenes
+    if (property.imagenes && Array.isArray(property.imagenes) && property.imagenes.length > 0) {
+      // Buscar la imagen principal
       const principalImg = property.imagenes.find(img => img.es_principal);
-      const imgUrl = principalImg ? principalImg.imagen : property.imagenes[0].imagen;
-      return imgUrl && imgUrl.startsWith('http') ? imgUrl : `${process.env.REACT_APP_API_URL}${imgUrl}`;
+      const imgToUse = principalImg || property.imagenes[0];
+      
+      if (imgToUse && imgToUse.imagen) {
+        const url = imgToUse.imagen;
+        if (url.startsWith('http')) return url;
+        return `${BACKEND_URL}${url}`;
+      }
     }
+    
+    // Fallback: imagen placeholder
     return 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad';
   };
 
@@ -214,32 +228,41 @@ const Home = () => {
                       </Col>
 
                       <Col md={12}>
-                        <Form.Control
-                          type="text"
-                          placeholder="Buscar por título..."
-                          name="search"
-                          value={searchFilters.search}
-                          onChange={handleFilterChange}
-                        />
-
-                        {suggestions.length > 0 && (
-                          <div className="suggestions-list bg-white rounded mt-1 p-2 shadow-sm" style={{ maxHeight: 260, overflowY: 'auto' }}>
-                            {suggestions.map(s => (
-                              <div key={s.id} className="suggestion-item d-flex align-items-center py-2" style={{ cursor: 'pointer' }} onClick={() => navigate(`/propiedades/${s.id}`)}>
-                                <div className="suggestion-thumb me-3">
-                                  <img src={getPropertyImage(s)} alt={s.titulo} style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 6 }} />
-                                </div>
-                                <div className="flex-grow-1">
-                                  <div className="suggestion-title fw-semibold" dangerouslySetInnerHTML={{ __html: renderHighlighted(s.titulo, searchFilters.search) }} />
-                                  <div className="text-muted small">{s.barrio} • {s.zona}</div>
-                                </div>
-                                <div className="text-end ms-3">
-                                  <div className="text-primary fw-bold">{formatSuggestionPrice(s)}</div>
-                                </div>
+                        <div className="d-flex flex-column">
+                          <div className="d-flex align-items-center">
+                            <Form.Control
+                              type="text"
+                              placeholder="Buscar por título..."
+                              name="search"
+                              value={searchFilters.search}
+                              onChange={handleFilterChange}
+                            />
+                            {loadingSuggestions && (
+                              <div className="ms-2">
+                                <Spinner animation="border" size="sm" />
                               </div>
-                            ))}
+                            )}
                           </div>
-                        )}
+
+                          {suggestions.length > 0 && (
+                            <div className="suggestions-list bg-white rounded mt-1 p-2 shadow-sm" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                              {suggestions.map(s => (
+                                <div key={s.id} className="suggestion-item d-flex align-items-center py-2" style={{ cursor: 'pointer' }} onClick={() => navigate(`/propiedades/${s.id}`)}>
+                                  <div className="suggestion-thumb me-3">
+                                    <img src={getPropertyImage(s)} alt={s.titulo} style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 6 }} />
+                                  </div>
+                                  <div className="flex-grow-1">
+                                    <div className="suggestion-title fw-semibold" dangerouslySetInnerHTML={{ __html: renderHighlighted(s.titulo, searchFilters.search) }} />
+                                    <div className="text-muted small">{s.barrio} • {s.zona}</div>
+                                  </div>
+                                  <div className="text-end ms-3">
+                                    <div className="text-primary fw-bold">{formatSuggestionPrice(s)}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </Col>
                       
                     </Row>
@@ -295,6 +318,9 @@ const Home = () => {
                           alt={property.titulo}
                           className="property-image"
                           style={{ height: '250px', objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad';
+                          }}
                         />
                         <span className="property-badge position-absolute top-0 end-0 m-3 badge bg-dark">
                           {property.operacion}
@@ -406,6 +432,55 @@ const Home = () => {
                   </Card.Text>
                 </Card.Body>
               </Card>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+
+      {/* Nosotros Section */}
+      <section className="py-5" id="nosotros">
+        <Container>
+          <Row className="mb-5">
+            <Col className="text-center">
+              <h2 className="fw-bold mb-3">Sobre Nosotros</h2>
+              <p className="text-muted">Conocé nuestra historia y compromiso</p>
+            </Col>
+          </Row>
+          <Row className="justify-content-center">
+            <Col md={8} className="text-center">
+              <p className="lead mb-4">
+                GTH Negocios Inmobiliarios es una empresa fundada en 2021, 
+                impulsada por un grupo de amigos con una visión en común: 
+                ofrecer un servicio serio, profesional y centrado en las personas.
+              </p>
+              <Button as={Link} to="/nosotros" variant="dark" size="lg">
+                Conocer más sobre nosotros
+                <i className="fas fa-arrow-right ms-2"></i>
+              </Button>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+
+      {/* Contact Section */}
+      <section className="bg-light py-5" id="contacto">
+        <Container>
+          <Row className="mb-5">
+            <Col className="text-center">
+              <h2 className="fw-bold mb-3">Contactanos</h2>
+              <p className="text-muted">Estamos para ayudarte en tu búsqueda</p>
+            </Col>
+          </Row>
+          <Row className="justify-content-center">
+            <Col md={8} className="text-center">
+              <p className="lead mb-4">
+                ¿Tenés dudas o querés agendar una visita? Nuestro equipo está 
+                listo para atenderte y brindarte la mejor asesoría.
+              </p>
+              <Button as={Link} to="/contacto" variant="dark" size="lg">
+                Ir a contacto
+                <i className="fas fa-arrow-right ms-2"></i>
+              </Button>
             </Col>
           </Row>
         </Container>

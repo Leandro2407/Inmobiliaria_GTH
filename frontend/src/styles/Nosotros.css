@@ -1,0 +1,106 @@
+.hero-section {
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed; 
+    min-height: 60vh; 
+}
+
+.tracking-wider {
+    letter-spacing: 3px;
+}
+
+/* ---------------------------------------------------------
+   SECCIONES GENERALES
+--------------------------------------------------------- */
+section {
+    position: relative;
+    z-index: 2;
+}
+
+.badge {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   OBJETIVOS (Cards estilo segunda imagen)
+--------------------------------------------------------- */
+.card {
+    border-radius: 14px !important;
+}
+
+.card h5 {
+    font-weight: 700 !important;
+}
+
+.card p {
+    color: #777 !important;
+}
+
+/* Efectos suaves */
+.card:hover {
+    transform: translateY(-3px);
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
+}
+
+/* ---------------------------------------------------------
+   TEAM CARDS
+--------------------------------------------------------- */
+/* --- TEAM CARDS --- */
+.team-card {
+    background: #fff;
+    border-radius: 16px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+}
+
+.team-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+.text-primary {
+    color: #555 !important; /* Gris oscuro para roles */
+}
+
+/* ---------------------------------------------------------
+   UTILIDADES
+--------------------------------------------------------- */
+.btn-outline-dark:hover {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+.hover-scale {
+    transition: transform 0.25s ease;
+}
+
+.hover-scale:hover {
+    transform: scale(1.05);
+}
+
+.object-fit-cover {
+    object-fit: cover;
+}
+
+/* ---------------------------------------------------------
+   RESPONSIVE OPTIMIZADO
+--------------------------------------------------------- */
+@media (max-width: 992px) {
+    .hero-section {
+        background-size: 70% !important;
+        background-attachment: scroll;
+    }
+
+    .team-card {
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-section {
+        background-size: 85% !important;
+        min-height: 40vh;
+    }
+}

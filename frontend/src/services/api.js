@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+// Determinar BACKEND_URL (sin el segmento /api al final) para usarlo al construir URLs de archivos estáticos
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || (API_URL.replace(/\/api\/?$/, ''));
 
 const api = axios.create({
   baseURL: API_URL,
@@ -8,6 +10,8 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+export { BACKEND_URL };
 
 api.interceptors.request.use(
   (config) => {

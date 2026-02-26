@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BACKEND_URL } from '../../services/api';
 import { Card, Button, Row, Col, Badge, Spinner, Tab, Tabs, ListGroup, Image } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -385,7 +386,7 @@ const SeguimientoClienteDetalle = () => {
                               {/* Thumbnail (use placeholder if no image) */}
                               {(() => {
                                 const imagen = prop.imagen_principal || prop.imagenes?.[0]?.imagen || null;
-                                const src = imagen ? (imagen.startsWith('http') ? imagen : `${process.env.REACT_APP_API_URL}${imagen}`) : 'https://via.placeholder.com/400x300?text=Sin+imagen';
+                                const src = imagen ? (imagen.startsWith('http') ? imagen : `${BACKEND_URL}${imagen}`) : 'https://via.placeholder.com/400x300?text=Sin+imagen';
                                 return (
                                   <div style={{ height: 180, overflow: 'hidden' }}>
                                     <Image

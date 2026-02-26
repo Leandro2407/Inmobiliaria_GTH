@@ -14,6 +14,7 @@ import Home from './pages/Home';
 import Properties from './pages/Properties';
 import PropertyDetailPage from './pages/PropertyDetailPage';
 import Contact from './pages/Contact';
+import Nosotros from './pages/Nosotros';
 import Dashboard from './pages/admin/Dashboard';
 import NotFound from './pages/NotFound';
 // --- ¡IMPORTACIÓN AÑADIDA! ---¿
@@ -69,8 +70,8 @@ function App() {
               <Route path="/propiedades" element={<Properties />} />
               <Route path="/propiedades/:id" element={<PropertyDetailPage />} />
               <Route path="/contacto" element={<Contact />} />
+              <Route path="/nosotros" element={<Nosotros />} />
               <Route path="/servicios" element={<Home />} />
-              <Route path="/nosotros" element={<Home />} />
 
               {/* --- RUTAS PROTEGIDAS (MODIFICADAS) --- */}
 
@@ -100,9 +101,7 @@ function App() {
                 }
               />
 
-              {/* Ruta /admin/* (Protegida SOLO para Empleados)
-                (Esta ya estaba bien, pero ahora coincide con /dashboard)
-              */}
+              {/* Rutas /admin/* anidadas para que el Dashboard actúe como layout con sidebar */}
               <Route
                 path="/admin/*"
                 element={
@@ -110,30 +109,17 @@ function App() {
                     <Dashboard />
                   </ProtectedRoute>
                 }
-              />
+              >
+                {/* Rutas hijas que se renderizan dentro del Dashboard (en el Outlet correspondiente) */}
+                <Route path="seguimiento-clientes" element={<SeguimientoClientesPanel />} />
+                <Route path="seguimiento-clientes/:id" element={<SeguimientoClienteDetalle />} />
+              </Route>
 
               <Route
                 path="/tareas"
                 element={
                   <ProtectedRoute requiredRole={['agente', 'administrador']}>
                     <Tareas />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/admin/seguimiento-clientes"
-                element={
-                  <ProtectedRoute requiredRole={['agente', 'administrador']}>
-                    <SeguimientoClientesPanel />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/seguimiento-clientes/:id"
-                element={
-                  <ProtectedRoute requiredRole={['agente', 'administrador']}>
-                    <SeguimientoClienteDetalle />
                   </ProtectedRoute>
                 }
               />

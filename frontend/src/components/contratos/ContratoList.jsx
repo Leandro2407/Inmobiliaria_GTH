@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Badge, Spinner, Alert, Image } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import contratoService from '../../services/contratoService';
+import { BACKEND_URL } from '../../services/api';
 
 const ContratoList = ({ onVerDetalle, onEditarContrato, refreshTrigger, clienteId = null }) => {
   const [contratos, setContratos] = useState([]);
@@ -156,7 +157,7 @@ const ContratoList = ({ onVerDetalle, onEditarContrato, refreshTrigger, clienteI
                   <td>
                     {(() => {
                       const prop = contrato.propiedad_info || contrato.propiedad || {};
-                      const imagenUrl = (prop.imagen_principal && (prop.imagen_principal.startsWith('http') ? prop.imagen_principal : `${process.env.REACT_APP_API_URL}${prop.imagen_principal}`)) || (prop.imagenes?.[0]?.imagen && (prop.imagenes[0].imagen.startsWith('http') ? prop.imagenes[0].imagen : `${process.env.REACT_APP_API_URL}${prop.imagenes[0].imagen}`)) || 'https://via.placeholder.com/90x60?text=Sin+imagen';
+                      const imagenUrl = (prop.imagen_principal && (prop.imagen_principal.startsWith('http') ? prop.imagen_principal : `${BACKEND_URL}${prop.imagen_principal}`)) || (prop.imagenes?.[0]?.imagen && (prop.imagenes[0].imagen.startsWith('http') ? prop.imagenes[0].imagen : `${BACKEND_URL}${prop.imagenes[0].imagen}`)) || 'https://via.placeholder.com/90x60?text=Sin+imagen';
                       return (
                         <div className="d-flex align-items-center">
                           <Image src={imagenUrl} rounded style={{ width: 90, height: 60, objectFit: 'cover' }} className="me-2" />

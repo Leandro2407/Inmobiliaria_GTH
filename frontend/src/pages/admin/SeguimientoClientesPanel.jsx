@@ -167,7 +167,6 @@ const SeguimientoClientesPanel = ({ refreshTrigger }) => {
                 <option value="">Todas las categorías</option>
                 <option value="alquiler">Alquiler</option>
                 <option value="compra">Compra</option>
-                <option value="ambos">Ambos</option>
               </Form.Select>
             </Col>
             <Col md={3}>
@@ -178,8 +177,6 @@ const SeguimientoClientesPanel = ({ refreshTrigger }) => {
                 <option value="">Todos los estados</option>
                 <option value="activo">Activo</option>
                 <option value="inactivo">Inactivo</option>
-                <option value="prospecto">Prospecto</option>
-                <option value="convertido">Convertido</option>
               </Form.Select>
             </Col>
             <Col md={2}>

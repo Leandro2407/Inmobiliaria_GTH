@@ -92,6 +92,7 @@ class PropiedadListSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(imagen.imagen.url)
             return imagen.imagen.url
         return None
+    
 
 
 class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
@@ -106,6 +107,7 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Propiedad
         fields = [
+            'id',  # IMPORTANTE: Campo necesario para obtener el ID después de crear
             'titulo', 'descripcion', 'tipo', 'operacion', 'estado',
             'precio_venta', 'precio_alquiler', 'moneda',
             'superficie_total', 'superficie_cubierta', 'dormitorios', 'banos',
@@ -114,6 +116,7 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
             'caracteristicas', 'caracteristicas_list', 'agente_cargo',
             'propietario', 'destacada'
         ]
+        read_only_fields = ['id']
     
     def create(self, validated_data):
         caracteristicas_list = validated_data.pop('caracteristicas_list', [])

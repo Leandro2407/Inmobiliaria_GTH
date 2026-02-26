@@ -5,9 +5,10 @@ import { toast } from 'react-toastify';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import propiedadService from '../../services/propiedadService';
-// Importamos api para hacer el fetch de agentes (asegurate de que la ruta sea correcta)
-import api from '../../services/api'; 
+import api, { BACKEND_URL } from '../../services/api'; 
 import MapaSelector from '../common/MapaSelector';
+
+// NOTE: Se eliminó la lógica de imágenes aleatorias y los imports asociados, ya que ahora se usan los archivos seleccionados por el usuario
 
 // Componente de Modal de Confirmación Personalizado para Eliminar
 const ConfirmDeleteModal = ({ show, onHide, onConfirm, propiedadTitulo }) => {
@@ -49,7 +50,7 @@ const ConfirmDeleteModal = ({ show, onHide, onConfirm, propiedadTitulo }) => {
 
 const PropiedadesPanel = () => {
   const [propiedades, setPropiedades] = useState([]);
-  const [agentes, setAgentes] = useState([]); // Estado para lista de agentes
+  const [agentes, setAgentes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -58,7 +59,6 @@ const PropiedadesPanel = () => {
   const [propiedadVer, setPropiedadVer] = useState(null);
   const [propiedadEliminar, setPropiedadEliminar] = useState(null);
   const [imagenesPrevias, setImagenesPrevias] = useState([]);
-  const [imagenesSubir, setImagenesSubir] = useState([]);
   const fileInputRef = React.useRef(null);
   const [filtros, setFiltros] = useState({
     search: '',
@@ -94,12 +94,10 @@ const PropiedadesPanel = () => {
   // Cargar lista de Agentes
   const cargarAgentes = useCallback(async () => {
     try {
-      // Usamos el endpoint del backend; la app 'usuarios' está incluida en /api/auth/
       const response = await api.get('/auth/agentes/');
       setAgentes(response.data.results || response.data);
     } catch (error) {
       console.error('Error al cargar agentes:', error);
-      // No bloqueamos la UI si falla, pero avisamos por consola
     }
   }, []);
 
@@ -111,7 +109,7 @@ const PropiedadesPanel = () => {
   const ensureAbsoluteUrl = (url) => {
     if (!url) return 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad';
     if (url.startsWith('http')) return url;
-    return `${process.env.REACT_APP_API_URL}${url}`;
+    return `${BACKEND_URL}${url}`;
   };
 
   const validationSchema = Yup.object().shape({
@@ -148,36 +146,31 @@ const PropiedadesPanel = () => {
   };
 
   const handleImagenesChange = (e) => {
-    const files = Array.from(e.target.files);
-    console.debug('handleImagenesChange files:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    const validFiles = files.filter(file => {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} es muy grande. Máximo 5MB`);
-        return false;
-      }
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name} no es una imagen`);
-        return false;
-      }
-      return true;
+    const max = 5;
+    const seleccionadas = files.slice(0, max);
+    const previews = seleccionadas.map((file) => {
+      return {
+        preview: URL.createObjectURL(file),
+        file: file,
+        isNew: true,
+      };
     });
 
-    const previews = validFiles.map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      isNew: true
-    }));
-
     setImagenesPrevias(prev => [...prev, ...previews]);
-    setImagenesSubir(prev => [...prev, ...validFiles]);
+    toast.info(`${previews.length} imagen(es) cargada(s)`);
   };
 
   const handleRemoverImagen = async (index) => {
-    // Si es una imagen existente (no nueva), podríamos querer eliminarla del servidor
-    // Por ahora solo la quitamos de la vista previa del formulario
     const imagenToRemove = imagenesPrevias[index];
     
+    // liberar URL de objeto creada para preview si es nueva
+    if (imagenToRemove.isNew && imagenToRemove.preview) {
+      URL.revokeObjectURL(imagenToRemove.preview);
+    }
+
     if (!imagenToRemove.isNew && imagenToRemove.id) {
        if(window.confirm("¿Deseas eliminar esta imagen guardada permanentemente?")) {
            try {
@@ -185,42 +178,18 @@ const PropiedadesPanel = () => {
                toast.success("Imagen eliminada");
            } catch(error) {
                toast.error("Error al eliminar imagen");
-               return; // Si falla no actualizamos el estado
+               return;
            }
        } else {
-           return; // Cancelado
+           return;
        }
     }
 
     setImagenesPrevias(prev => {
       const newPreviews = [...prev];
-      if (newPreviews[index].isNew) {
-        URL.revokeObjectURL(newPreviews[index].preview);
-      }
       newPreviews.splice(index, 1);
       return newPreviews;
     });
-
-    if (imagenToRemove.isNew) {
-        // Necesitamos encontrar cuál archivo de imagenesSubir corresponde a este preview
-        // Como simplificación, asumimos que los nuevos están al final. 
-        // Para una implementación robusta se requeriría trackear IDs temporales.
-        // Aquí regeneramos imagenesSubir basado en los previews 'isNew' restantes
-        // (Nota: Esto es una simplificación, idealmente filtraríamos el array paralelo)
-        
-        // Forma simple: filtrar del array de subida solo si podemos mappear el indice. 
-        // Dado que mezclamos existentes y nuevas, lo mejor es reiniciar imagenesSubir
-        // O simplemente filtrar el archivo correspondiente si llevamos un indice paralelo.
-        
-        // Reconstrucción simple para el ejemplo:
-        setImagenesSubir(prev => {
-             const newFiles = [...prev];
-             // Calculamos el índice relativo en el array de nuevos
-             const newImagesCountBeforeIndex = imagenesPrevias.slice(0, index).filter(img => img.isNew).length;
-             newFiles.splice(newImagesCountBeforeIndex, 1);
-             return newFiles;
-        });
-    }
   };
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
@@ -251,23 +220,20 @@ const PropiedadesPanel = () => {
       if (propiedadData.longitud === '') delete propiedadData.longitud;
       if (propiedadData.agente_cargo === '') propiedadData.agente_cargo = null;
 
-      // Coercer campos numéricos a Number (DRF acepta strings pero es más seguro enviar números)
+      // Coercer campos numéricos a Number
       const toNumber = (v, { allowDecimals = true, decimals = 8 } = {}) => {
         if (v === null || v === undefined || v === '') return undefined;
         let s = String(v).trim();
 
-        // Para campos que permiten decimales (lat/long, superficies), preservamos el punto
         if (allowDecimals) {
           s = s.replace(/\s/g, '').replace(',', '.');
         } else {
-          // Para precios formateados con puntos como miles, los removemos
           s = s.replace(/\./g, '').replace(',', '.');
         }
 
         const n = Number(s);
         if (Number.isNaN(n)) return undefined;
 
-        // Redondear a la cantidad de decimales solicitada
         if (typeof decimals === 'number') {
           const factor = Math.pow(10, decimals);
           return Math.round(n * factor) / factor;
@@ -297,66 +263,64 @@ const PropiedadesPanel = () => {
       } else {
         console.debug('Enviar propiedad (create):', propiedadData);
         const nuevaPropiedad = await propiedadService.create(propiedadData);
+        console.log('Nueva propiedad creada:', nuevaPropiedad); // DEBUG
         propiedadId = nuevaPropiedad.id;
+        console.log('ID de la propiedad:', propiedadId); // DEBUG
         toast.success('Propiedad creada exitosamente');
       }
 
-      // Subir imágenes
-      if (imagenesSubir.length > 0) {
-        toast.info('Subiendo imágenes...');
+      // Validar que tenemos un ID válido antes de subir imágenes
+      if (!propiedadId) {
+        console.error('No se pudo obtener el ID de la propiedad');
+        toast.error('Error: No se pudo obtener el ID de la propiedad');
+        return;
+      }
 
-        for (let i = 0; i < imagenesSubir.length; i++) {
+      // Subir las imágenes reales al servidor
+      const imagenesNuevas = imagenesPrevias.filter(img => img.isNew && img.file);
+      console.log('imagenesPrevias estado antes de upload:', imagenesPrevias);
+      console.log('imagenesNuevas a procesar:', imagenesNuevas);
+      
+      if (imagenesNuevas.length > 0) {
+        console.log(`Subiendo ${imagenesNuevas.length} imágenes a la propiedad ${propiedadId}`); // DEBUG
+        let imagenesSubidas = 0;
+        
+        for (let i = 0; i < imagenesNuevas.length; i++) {
+          const img = imagenesNuevas[i];
           const formData = new FormData();
-          formData.append('imagen', imagenesSubir[i]);
+          formData.append('imagen', img.file);
           formData.append('orden', i);
-          formData.append('es_principal', i === 0 && imagenesPrevias.length === imagenesSubir.length ? 'true' : 'false');
-
+          formData.append('es_principal', i === 0);
+          
           try {
-            await propiedadService.subirImagen(propiedadId, formData);
+            console.log(`Subiendo imagen ${i + 1} a propiedad ${propiedadId}`);
+            const res = await propiedadService.subirImagen(propiedadId, formData);
+            console.log('Respuesta upload:', res);
+            imagenesSubidas++;
           } catch (error) {
-            console.error(`Error al subir imagen ${i + 1}:`, error);
+            console.error('Error subiendo imagen:', error);
+            const msg = error?.response?.data || error.message || 'desconocido';
+            toast.error(`Error al subir imagen ${i + 1}: ${JSON.stringify(msg)}`);
           }
         }
-
-        // Refrescar la propiedad para traer las imágenes subidas (y mostrar en la vista)
-        try {
-          const propiedadActualizada = await propiedadService.getById(propiedadId);
-          // Actualizar vistas previas con las imágenes reales del servidor
-          if (propiedadActualizada.imagenes && propiedadActualizada.imagenes.length > 0) {
-            const previews = propiedadActualizada.imagenes.map(img => ({ preview: img.imagen, isNew: false, id: img.id }));
-            setImagenesPrevias(previews);
-          }
-        } catch (err) {
-          console.error('No se pudo refrescar propiedad tras subir imágenes:', err);
+        
+        if (imagenesSubidas > 0) {
+          toast.success(`${imagenesSubidas} imagen(es) subida(s) exitosamente`);
         }
-
-        // Limpiar input de archivos si existe
-        if (fileInputRef.current) fileInputRef.current.value = null;
-
-        toast.success('Imágenes subidas exitosamente');
       }
 
       setShowModal(false);
       resetForm();
       setPropiedadEditar(null);
-      // Revoke object URLs for previews to avoid memory leaks
-      imagenesPrevias.forEach(img => {
-        if (img.isNew && img.preview && img.preview.startsWith('blob:')) {
-          URL.revokeObjectURL(img.preview);
-        }
-      });
       setImagenesPrevias([]);
-      setImagenesSubir([]);
       cargarPropiedades();
     } catch (error) {
-      // Mostrar respuesta de error con más detalle en consola para debugging
       const serverData = error?.response?.data;
       try {
         console.error('Error al guardar propiedad:', serverData ? JSON.stringify(serverData, null, 2) : error);
       } catch (e) {
         console.error('Error al guardar propiedad (no JSON):', serverData || error);
       }
-      // También loguear status por si interesa
       if (error?.response?.status) console.error('Status:', error.response.status);
       const data = error.response?.data;
       let errorMsg = 'Error al guardar la propiedad';
@@ -410,7 +374,7 @@ const PropiedadesPanel = () => {
       // Cargar imágenes existentes
       if (propiedadCompleta.imagenes && propiedadCompleta.imagenes.length > 0) {
         const previews = propiedadCompleta.imagenes.map(img => ({
-          preview: img.imagen, // El backend ahora devuelve URL absoluta
+          preview: img.imagen,
           isNew: false,
           id: img.id
         }));
@@ -419,7 +383,6 @@ const PropiedadesPanel = () => {
         setImagenesPrevias([]);
       }
 
-      setImagenesSubir([]);
       setShowModal(true);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -461,7 +424,6 @@ const PropiedadesPanel = () => {
               onClick={() => {
                 setPropiedadEditar(null);
                 setImagenesPrevias([]);
-                setImagenesSubir([]);
                 setShowModal(true);
               }}
             >
@@ -754,7 +716,6 @@ const PropiedadesPanel = () => {
                             height="100%"
                             frameBorder="0"
                             style={{ border: 0 }}
-                            // URL Estándar que no depende de contextos específicos del cliente
                             src={`https://maps.google.com/maps?q=${propiedadVer.latitud},${propiedadVer.longitud}&z=15&output=embed`}
                             allowFullScreen
                           />
@@ -1298,12 +1259,9 @@ const PropiedadesPanel = () => {
                     type="file"
                     multiple
                     accept="image/*"
-                      onChange={handleImagenesChange}
-                      ref={fileInputRef}
+                    onChange={handleImagenesChange}
+                    ref={fileInputRef}
                   />
-                  <Form.Text className="text-muted">
-                    Puede seleccionar múltiples imágenes. Máximo 5MB por imagen. La primera será la principal.
-                  </Form.Text>
                 </Form.Group>
 
                 {imagenesPrevias.length > 0 && (
@@ -1312,7 +1270,7 @@ const PropiedadesPanel = () => {
                       {imagenesPrevias.map((prev, index) => (
                         <div key={index} className="position-relative">
                           <Image
-                            src={prev.isNew ? prev.preview : ensureAbsoluteUrl(prev.preview)}
+                            src={prev.preview}
                             thumbnail
                             style={{ width: '150px', height: '150px', objectFit: 'cover' }}
                           />
@@ -1353,7 +1311,6 @@ const PropiedadesPanel = () => {
                     onClick={() => {
                       setShowModal(false);
                       setImagenesPrevias([]);
-                      setImagenesSubir([]);
                     }}
                   >
                     Cancelar

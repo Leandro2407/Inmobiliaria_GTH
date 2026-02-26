@@ -457,6 +457,8 @@ const TareaItem = ({ tarea, onEdit, onDelete, onFinalizar }) => {
                     size="sm"
                     onClick={handleEliminarClick}
                     className="boton-compacto border-2"
+                    disabled={tarea.finalizada}
+                    title={tarea.finalizada ? 'No se puede eliminar una tarea finalizada' : 'Eliminar'}
                   >
                     <i className="fas fa-trash me-1"></i>Eliminar
                   </Button>

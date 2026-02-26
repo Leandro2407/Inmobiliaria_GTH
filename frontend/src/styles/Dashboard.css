@@ -49,21 +49,61 @@
   box-shadow: 0 10px 20px rgba(0,0,0,.1) !important;
 }
 
-.stat-card:nth-child(1) {
-  border-left-color: #0d6efd;
+/* Variantes pastel para tarjetas de estadísticas - texto en negro para mejor contraste */
+.stat-card {
+  color: #000; /* asegurar texto negro por defecto */
+  border-left: 4px solid transparent;
+  background-clip: border-box;
 }
 
-.stat-card:nth-child(2) {
-  border-left-color: #198754;
+/* Asegurar que el contenido interno no tenga fondo blanco que oculte el color */
+.stat-card .card-body {
+  background-color: transparent !important;
+  padding: 1rem 1.25rem;
 }
 
-.stat-card:nth-child(3) {
-  border-left-color: #ffc107;
+.stat-card h3,
+.stat-card p {
+  color: #000 !important;
 }
 
-.stat-card:nth-child(4) {
-  border-left-color: #0dcaf0;
+/* Colores individuales más específicos usando el selector .card.stat-*
+   Esto evita conflictos con la regla .stat-card:nth-child(...) */
+.card.stat-clientes {
+  background: linear-gradient(180deg, #eaf4ff 0%, #f5fbff 100%) !important; /* azul pastel */
+  border-left-color: #69b3ff !important;
+  border-radius: 8px;
 }
+.card.stat-propiedades {
+  background: linear-gradient(180deg, #ecfff3 0%, #f6fffb 100%) !important; /* verde pastel */
+  border-left-color: #38c172 !important;
+  border-radius: 8px;
+}
+.card.stat-tareas {
+  background: linear-gradient(180deg, #fff9e6 0%, #fffef6 100%) !important; /* amarillo pastel */
+  border-left-color: #ffbf47 !important;
+  border-radius: 8px;
+}
+.card.stat-visitas {
+  background: linear-gradient(180deg, #eafcff 0%, #f6fdff 100%) !important; /* celeste pastel */
+  border-left-color: #66d1ff !important;
+  border-radius: 8px;
+}
+
+/* Asegurar cuerpo transparente y texto en negro para las tarjetas individuales */
+.card.stat-clientes .card-body,
+.card.stat-propiedades .card-body,
+.card.stat-tareas .card-body,
+.card.stat-visitas .card-body {
+  background-color: transparent !important;
+  color: #000 !important;
+}
+
+/* Quitar reglas basadas en child index que podían causar inconsistencias */
+.stat-card:nth-child(1) { border-left-color: transparent; }
+.stat-card:nth-child(2) { border-left-color: transparent; }
+.stat-card:nth-child(3) { border-left-color: transparent; }
+.stat-card:nth-child(4) { border-left-color: transparent; }
 
 .stat-icon {
   width: 60px;

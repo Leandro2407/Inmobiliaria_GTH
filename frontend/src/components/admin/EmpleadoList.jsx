@@ -3,6 +3,7 @@ import { Card, Table, Button, Modal, Spinner } from 'react-bootstrap';
 import api from '../../services/api';
 import { toast } from 'react-toastify';
 import EmpleadoForm from './EmpleadoForm';
+import authService from '../../services/authService';
 
 const EmpleadoList = () => {
   const [empleados, setEmpleados] = useState([]);
@@ -11,6 +12,8 @@ const EmpleadoList = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmpleado, setSelectedEmpleado] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [empleadoToDelete, setEmpleadoToDelete] = useState(null);
 
   const cargarEmpleados = async () => {
     try {
@@ -32,16 +35,32 @@ const EmpleadoList = () => {
     cargarEmpleados();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este empleado?')) return;
+  const isAdmin = authService.isAdmin();
+
+  const openDeleteModal = (empleado) => {
+    setEmpleadoToDelete(empleado);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!empleadoToDelete) return;
     try {
-      await api.delete(`/auth/users/${id}/`);
+      await api.delete(`/auth/users/${empleadoToDelete.id}/`);
       toast.success('Empleado eliminado');
+      setShowDeleteModal(false);
+      setEmpleadoToDelete(null);
       cargarEmpleados();
     } catch (error) {
       console.error('Error borrando empleado', error);
       toast.error('No se pudo eliminar el empleado');
+      setShowDeleteModal(false);
+      setEmpleadoToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setEmpleadoToDelete(null);
   };
 
   const handleEdit = (empleado) => {
@@ -61,7 +80,7 @@ const EmpleadoList = () => {
           <h5 className="mb-0">Empleados</h5>
           <div>
             <Button variant="outline-secondary" className="me-2" onClick={cargarEmpleados}>Refrescar</Button>
-            <Button variant="dark" onClick={() => setShowCreateModal(true)}>Nuevo empleado</Button>
+            <Button variant="dark" onClick={() => setShowCreateModal(true)} disabled={!isAdmin} title={!isAdmin ? 'Solo administradores pueden crear empleados' : ''}>Nuevo empleado</Button>
           </div>
         </div>
 
@@ -100,15 +119,17 @@ const EmpleadoList = () => {
                       size="sm"
                       className="me-1"
                       onClick={() => handleEdit(e)}
-                      title="Editar"
+                      title={!isAdmin ? 'Solo administradores pueden editar empleados' : 'Editar'}
+                      disabled={!isAdmin}
                     >
                       <i className="fas fa-edit"></i>
                     </Button>
                     <Button
                       variant="outline-dark"
                       size="sm"
-                      onClick={() => handleDelete(e.id)}
-                      title="Eliminar"
+                      onClick={() => openDeleteModal(e)}
+                      title={!isAdmin ? 'Solo administradores pueden eliminar empleados' : 'Eliminar'}
+                      disabled={!isAdmin}
                     >
                       <i className="fas fa-trash"></i>
                     </Button>
@@ -172,6 +193,34 @@ const EmpleadoList = () => {
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowViewModal(false)}>Cerrar</Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Delete Confirmation Modal (custom, no browser alert) */}
+        <Modal show={showDeleteModal} onHide={handleDeleteCancel} centered>
+          <Modal.Header className="border-0 pb-0">
+            <Modal.Title className="w-100 text-center">¿Está seguro que desea eliminar a este empleado?</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="text-center px-4">
+            <p className="mb-3">Esta acción no se puede deshacer.</p>
+          </Modal.Body>
+          <Modal.Footer className="border-0 justify-content-center pb-4">
+            <Button 
+              variant="secondary" 
+              onClick={handleDeleteCancel}
+              style={{ backgroundColor: '#6c757d', borderColor: '#6c757d' }}
+              className="px-4"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="dark" 
+              onClick={handleDeleteConfirmed}
+              style={{ backgroundColor: '#000', borderColor: '#000' }}
+              className="px-4"
+            >
+              Eliminar
+            </Button>
           </Modal.Footer>
         </Modal>
       </Card.Body>
