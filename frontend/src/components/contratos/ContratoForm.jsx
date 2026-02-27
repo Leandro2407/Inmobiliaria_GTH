@@ -44,7 +44,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   };
 
   // Validar que la fecha de fin sea posterior a la fecha de inicio
-  const validarFechas = (fechaInicio, fechaFin) => {
+  const validarFechas = React.useCallback((fechaInicio, fechaFin) => {
     if (fechaInicio && fechaFin) {
       const inicio = new Date(fechaInicio);
       const fin = new Date(fechaFin);
@@ -60,10 +60,10 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       }
     }
     return '';
-  };
+  }, []);
 
   // Validar que la fecha de inicio no sea anterior a hoy
-  const validarFechaInicio = (fecha) => {
+  const validarFechaInicio = React.useCallback((fecha) => {
     if (fecha) {
       const hoy = new Date(getFechaActual());
       const fechaInicio = new Date(fecha);
@@ -77,7 +77,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       }
     }
     return '';
-  };
+  }, []);
 
   // Efecto para actualizar la comisión cuando cambia el monto o el porcentaje
   useEffect(() => {
@@ -90,26 +90,28 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
 
   // Efecto para validar fechas cuando cambian
   useEffect(() => {
-    const newErrors = { ...errors };
+    setErrors((prevErrors) => {
+      const newErrors = { ...prevErrors };
 
-    // Validar fecha de inicio
-    const errorInicio = validarFechaInicio(formData.fecha_inicio);
-    if (errorInicio) {
-      newErrors.fecha_inicio = errorInicio;
-    } else {
-      delete newErrors.fecha_inicio;
-    }
+      // Validar fecha de inicio
+      const errorInicio = validarFechaInicio(formData.fecha_inicio);
+      if (errorInicio) {
+        newErrors.fecha_inicio = errorInicio;
+      } else {
+        delete newErrors.fecha_inicio;
+      }
 
-    // Validar relación entre fechas
-    const errorFechas = validarFechas(formData.fecha_inicio, formData.fecha_fin);
-    if (errorFechas) {
-      newErrors.fecha_fin = errorFechas;
-    } else if (formData.fecha_fin) {
-      delete newErrors.fecha_fin;
-    }
+      // Validar relación entre fechas
+      const errorFechas = validarFechas(formData.fecha_inicio, formData.fecha_fin);
+      if (errorFechas) {
+        newErrors.fecha_fin = errorFechas;
+      } else if (formData.fecha_fin) {
+        delete newErrors.fecha_fin;
+      }
 
-    setErrors(newErrors);
-  }, [formData.fecha_inicio, formData.fecha_fin, errors, validarFechaInicio, validarFechas]);
+      return newErrors;
+    });
+  }, [formData.fecha_inicio, formData.fecha_fin, validarFechaInicio, validarFechas]);
 
   useEffect(() => {
     if (show) {
@@ -158,14 +160,12 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   const cargarPropiedades = async () => {
     try {
       setLoadingPropiedades(true);
-      console.log('🔄 Cargando propiedades disponibles para contrato...');
-
-      // Cargar solo propiedades disponibles (estado='disponible')
-      const response = await propiedadService.getAll({ estado: 'disponible' });
-
+      console.log('🔄 Cargando propiedades para contrato...');
+      const response = await propiedadService.getAll();
+      
       // Manejar diferentes formatos de respuesta
       let propiedadesData = [];
-
+      
       if (Array.isArray(response)) {
         propiedadesData = response;
       } else if (response && Array.isArray(response.results)) {
@@ -173,17 +173,14 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       } else if (response && typeof response === 'object') {
         propiedadesData = [response];
       }
-
-      console.log('✅ Propiedades disponibles cargadas:', propiedadesData.length);
-
-      if (propiedadesData.length === 0) {
-        console.warn('⚠️ No hay propiedades disponibles');
-      }
-
+      
+      console.log('✅ Propiedades cargadas:', propiedadesData.length);
+      console.log('📋 Detalles de propiedades:', propiedadesData);
+      
       setPropiedades(propiedadesData);
     } catch (error) {
       console.error('❌ Error al cargar propiedades:', error);
-      toast.error('Error al cargar las propiedades disponibles');
+      toast.error('Error al cargar las propiedades');
       setPropiedades([]);
     } finally {
       setLoadingPropiedades(false);

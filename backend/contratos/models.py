@@ -6,7 +6,6 @@ class Contrato(models.Model):
     TIPO_CONTRATO = [
         ('alquiler', 'Alquiler'),
         ('venta', 'Venta'),
-        ('administracion', 'Administración'),
     ]
     
     ESTADO_CONTRATO = [
