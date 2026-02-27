@@ -10,8 +10,6 @@ import { setUser } from '../store/slices/authSlice';
 import '../styles/Perfil.css';
 
 // ✅ FIX CRÍTICO: DefaultAvatar definido FUERA del componente Perfil.
-// Si se define adentro, React lo recrea en cada render y pierde la referencia
-// al nodo del DOM, causando el error "insertBefore / removeChild not a child".
 const DefaultAvatar = ({ themeColors }) => (
   <div
     className="d-flex align-items-center justify-content-center mb-3 rounded-circle"
@@ -50,21 +48,19 @@ const Perfil = () => {
 
   const isEmpleado = user?.rol === 'agente' || user?.rol === 'administrador';
 
-  // ✅ MODIFICADO: Solo las 2 opciones solicitadas
   const puestosOptions = [
     { value: 'agente_inmobiliario', label: 'Agente Inmobiliario' },
     { value: 'administrador', label: 'Administrador' },
   ];
 
-  // Definir colores para el tema
   const themeColors = {
-    primary: '#2c3e50', // Azul oscuro elegante
-    secondary: '#34495e', // Azul medio
-    accent: '#e74c3c', // Rojo vibrante
-    success: '#27ae60', // Verde
-    light: '#ecf0f1', // Gris claro
-    dark: '#2c3e50', // Azul oscuro
-    highlight: '#3498db', // Azul brillante
+    primary: '#2c3e50',
+    secondary: '#34495e',
+    accent: '#e74c3c',
+    success: '#27ae60',
+    light: '#ecf0f1',
+    dark: '#2c3e50',
+    highlight: '#3498db',
   };
 
   useEffect(() => {
@@ -85,7 +81,6 @@ const Perfil = () => {
     toast.error('Error al cargar la imagen. Se mostrará el avatar por defecto.');
   };
 
-  // Esquema de validación para EMPLEADOS con validaciones específicas
   const empleadoSchema = Yup.object().shape({
     first_name: Yup.string()
       .required('El nombre es requerido')
@@ -126,7 +121,6 @@ const Perfil = () => {
       .required('El puesto es requerido'),
   });
 
-  // Esquema de validación para CLIENTES con validaciones específicas
   const clienteSchema = Yup.object().shape({
     first_name: Yup.string()
       .required('El nombre es requerido')
@@ -148,7 +142,6 @@ const Perfil = () => {
     intereses: Yup.string(),
   });
 
-  // Valores iniciales para EMPLEADOS
   const empleadoInitialValues = {
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -163,7 +156,6 @@ const Perfil = () => {
     puesto: user?.puesto || '',
   };
 
-  // Valores iniciales para CLIENTES
   const clienteInitialValues = {
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -178,13 +170,11 @@ const Perfil = () => {
     if (file) {
       console.log('📁 Archivo seleccionado:', file.name, file.type, file.size);
       
-      // Validar tipo de archivo
       if (!file.type.startsWith('image/')) {
         toast.error('Por favor, selecciona un archivo de imagen válido (JPEG, PNG, etc.)');
         return;
       }
 
-      // Validar tamaño (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('La imagen no debe superar los 5MB');
         return;
@@ -193,7 +183,6 @@ const Perfil = () => {
       setSelectedFile(file);
       setImageError(false);
 
-      // Crear preview
       const reader = new FileReader();
       reader.onloadend = () => {
         console.log('✅ Preview de imagen creado');
@@ -208,18 +197,15 @@ const Perfil = () => {
     }
   };
 
-  // Función para formatear teléfono mientras se escribe
   const formatPhoneNumber = (value) => {
     const cleaned = value.replace(/[^\d+\-()\s]/g, '');
     return cleaned;
   };
 
-  // Función para validar solo letras
   const validateOnlyLetters = (value) => {
     return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
   };
 
-  // Función para validar solo números
   const validateOnlyNumbers = (value) => {
     return value.replace(/\D/g, '');
   };
@@ -231,14 +217,12 @@ const Perfil = () => {
       
       const formData = new FormData();
       
-      // Agregar campos de forma más robusta
       Object.keys(values).forEach(key => {
         if (values[key] && key !== 'foto_perfil') {
           formData.append(key, values[key]);
         }
       });
       
-      // Manejo de archivo de imagen
       if (selectedFile && !imageError) {
         console.log('🖼️ Agregando imagen al FormData:', selectedFile.name);
         formData.append('foto_perfil', selectedFile);
@@ -247,13 +231,15 @@ const Perfil = () => {
       }
 
       console.log('🚀 Enviando datos al servidor...');
+      
+      // ✅ FIX APLICADO: authService.updateProfile ya retorna response.data internamente
       const response = await authService.updateProfile(formData);
       
-      console.log('✅ Respuesta del servidor:', response.data);
-      // ✅ FIX: dispatch directo sin setTimeout para evitar re-renders conflictivos
-      dispatch(setUser(response.data));
+      console.log('✅ Respuesta del servidor:', response);
       
-      // LIMPIAR: Resetear archivo seleccionado después del éxito
+      // ✅ FIX APLICADO: pasamos "response" directamente, sin el ".data" que causaba el undefined
+      dispatch(setUser(response));
+      
       setSelectedFile(null);
       
       toast.success('Perfil actualizado exitosamente');
@@ -270,8 +256,6 @@ const Perfil = () => {
       setSubmitting(false);
     }
   };
-
-  // DefaultAvatar fue movido fuera del componente (ver arriba)
 
   if (!user) {
     return (
@@ -341,7 +325,6 @@ const Perfil = () => {
                   isSubmitting,
                 }) => (
                   <Form onSubmit={handleSubmit}>
-                    {/* Foto de perfil con mejor diseño */}
                     <div className="text-center mb-5">
                       <div className="profile-image-container position-relative d-inline-block">
                         {previewImage && !imageError ? (
@@ -440,7 +423,6 @@ const Perfil = () => {
                       </p>
                     </div>
 
-                    {/* Campos comunes con mejor diseño */}
                     <div className="mb-4">
                       <h5 className="mb-4" style={{ 
                         color: themeColors.primary,
@@ -584,9 +566,9 @@ const Perfil = () => {
                       </Form.Group>
                     </div>
 
-                    {/* Campos específicos para EMPLEADOS */}
+                    {/* ✅ FIX APLICADO: Reemplazado Fragment (<>) por <div> para estabilizar el DOM */}
                     {isEmpleado && (
-                      <>
+                      <div key="empleado-fields">
                         <div className="mb-4">
                           <h5 className="mb-4" style={{ 
                             color: themeColors.primary,
@@ -811,7 +793,6 @@ const Perfil = () => {
                               }}
                             >
                               <option value="">Selecciona un puesto</option>
-                              {/* ✅ MODIFICADO: Solo las 2 opciones solicitadas */}
                               {puestosOptions.map((puesto) => (
                                 <option key={puesto.value} value={puesto.value}>
                                   {puesto.label}
@@ -826,10 +807,9 @@ const Perfil = () => {
                             )}
                           </Form.Group>
                         </div>
-                      </>
+                      </div>
                     )}
 
-                    {/* Campos específicos para CLIENTES */}
                     {!isEmpleado && (
                       <div className="mb-4">
                         <h5 className="mb-4" style={{ 
@@ -911,7 +891,6 @@ const Perfil = () => {
                       </div>
                     )}
 
-                    {/* Botón de guardar con mejor estilo */}
                     <div className="d-grid gap-2 mt-5 pt-3" style={{ borderTop: `1px solid ${themeColors.light}` }}>
                       <Button
                         variant="primary"
@@ -967,7 +946,6 @@ const Perfil = () => {
               </Formik>
             </Card.Body>
             
-            {/* Pie de tarjeta */}
             <Card.Footer className="text-center py-3" style={{ 
               background: themeColors.light,
               borderTop: `1px solid ${themeColors.light}`,
