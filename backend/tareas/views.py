@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
@@ -15,23 +15,30 @@ class TareaViewSet(viewsets.ModelViewSet):
     queryset = Tarea.objects.all()
     serializer_class = TareaSerializer
     
-    # Permisos temporales para desarrollo
-    permission_classes = [permissions.AllowAny]  # Cambiar a IsAuthenticated en producción
+    # ✅ CAMBIO 1: Exigir que el usuario esté autenticado para ver la ruta
+    permission_classes = [permissions.IsAuthenticated]
     
     # Desactivar paginación para obtener todas las tareas
     pagination_class = None
     
     def get_queryset(self):
         """
-        Personalizar el queryset para ordenar las tareas
-        En producción, agregar filtrado por usuario autenticado
+        ✅ CAMBIO 2: Filtrar tareas según el usuario autenticado.
+        Los administradores ven todo, los agentes solo sus propias tareas.
         """
-        return Tarea.objects.all().order_by('-fecha', '-hora_inicio')
+        user = self.request.user
+        queryset = Tarea.objects.all().order_by('-fecha', '-hora_inicio')
+        
+        # Si el usuario es administrador o parte del staff, le mostramos TODAS las tareas
+        if user.is_staff or getattr(user, 'rol', '') == 'administrador':
+            return queryset
+            
+        # Si es un agente normal, filtramos para mostrar SOLO las tareas donde él está asignado
+        return queryset.filter(empleados=user)
 
     def perform_create(self, serializer):
         """
         Hook personalizado para la creación de tareas
-        Podría agregar lógica adicional como asignar usuario creador
         """
         serializer.save()
 
@@ -57,8 +64,9 @@ class TareaViewSet(viewsets.ModelViewSet):
         Marca la tarea como completada y establece la fecha de finalización
         """
         try:
-            # Obtener la tarea específica
-            tarea = Tarea.objects.get(id=pk)
+            # ✅ Usamos get_queryset() en lugar de Tarea.objects para que respete
+            # la regla de que un agente solo pueda finalizar SUS propias tareas
+            tarea = self.get_queryset().get(id=pk)
             
             # Validar que la tarea no esté ya finalizada
             if tarea.finalizada:
@@ -84,7 +92,7 @@ class TareaViewSet(viewsets.ModelViewSet):
             
         except Tarea.DoesNotExist:
             return Response(
-                {'error': 'Tarea no encontrada'}, 
+                {'error': 'Tarea no encontrada o no tienes permiso para verla'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
