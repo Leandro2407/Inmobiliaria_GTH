@@ -20,11 +20,13 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // ✅ FIX CRÍTICO: Si el body es FormData (subida de archivos/imágenes),
-    // eliminar el Content-Type para que axios lo genere automáticamente
-    // con el 'boundary' correcto. Sin esto, Django no puede parsear los archivos.
+    // ✅ FIX CRÍTICO: Asegurarse de eliminar el Content-Type de TODAS las capas de Axios
+    // para que el navegador genere el 'boundary' del FormData correctamente al subir imágenes.
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
+      if (config.headers.post) {
+        delete config.headers.post['Content-Type'];
+      }
     }
 
     return config;
