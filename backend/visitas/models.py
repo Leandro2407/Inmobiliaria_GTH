@@ -12,12 +12,13 @@ class Visita(models.Model):
     TIEMPO_MINIMO_ENTRE_VISITAS = 2
     
     # Opciones para resultados de visitas
+    # 🔄 Modificado: Reemplazado 'pendiente_evaluacion' por 'no_se_presento'
     RESULTADO_CHOICES = [
         ('interesado', 'Cliente Interesado'),
         ('no_interesado', 'Cliente No Interesado'),
         ('agendada_visita', 'Se agendó nueva visita'),
         ('vendido', 'Se concretó venta/alquiler'),
-        ('pendiente_evaluacion', 'Pendiente de evaluación'),
+        ('no_se_presento', 'No se presentó el cliente'),
     ]
     
     # Opciones para estados de visitas

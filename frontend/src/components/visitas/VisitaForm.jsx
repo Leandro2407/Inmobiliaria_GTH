@@ -544,7 +544,8 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
                   <option value="no_interesado">Cliente No Interesado</option>
                   <option value="agendada_visita">Se agendó nueva visita</option>
                   <option value="vendido">Se concretó venta/alquiler</option>
-                  <option value="pendiente_evaluacion">Pendiente de evaluación</option>
+                  {/* 🔄 Modificado: Reemplazado "pendiente_evaluacion" por "no_se_presento" */}
+                  <option value="no_se_presento">No se presento el cliente</option>
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">
                   {errors.resultado}

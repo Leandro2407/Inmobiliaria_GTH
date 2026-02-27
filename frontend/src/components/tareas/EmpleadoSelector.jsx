@@ -15,8 +15,10 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
     } else {
       const busquedaLower = busqueda.toLowerCase();
       const filtrados = empleados.filter(empleado => {
-        const nombreCompleto = `${empleado.first_name} ${empleado.last_name}`.toLowerCase();
-        return nombreCompleto.includes(busquedaLower);
+        const nombreCompleto = empleado.full_name || 
+                               empleado.username || 
+                               `${empleado.first_name || ''} ${empleado.last_name || ''}`.trim();
+        return nombreCompleto.toLowerCase().includes(busquedaLower);
       });
       setEmpleadosFiltrados(filtrados);
     }
@@ -44,10 +46,13 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
     const empleado = empleados.find(e => e.id === empleadoId);
     if (!empleado) return 'Empleado desconocido';
     
-    let nombreCompleto = empleado.username || `${empleado.first_name} ${empleado.last_name}`.trim();
+    // Intentar obtener nombre de diferentes fuentes posibles
+    let nombreCompleto = empleado.full_name || 
+                        empleado.username || 
+                        `${empleado.first_name || ''} ${empleado.last_name || ''}`.trim();
     
     if (!nombreCompleto || nombreCompleto === ' ') {
-      nombreCompleto = 'Empleado';
+      nombreCompleto = 'Empleado sin nombre';
     }
     return nombreCompleto;
   };
@@ -140,7 +145,9 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
             </div>
           ) : (
             empleadosFiltrados.map(empleado => {
-              let nombreCompleto = empleado.username || `${empleado.first_name} ${empleado.last_name}`.trim();
+              let nombreCompleto = empleado.full_name || 
+                                  empleado.username || 
+                                  `${empleado.first_name || ''} ${empleado.last_name || ''}`.trim();
               if (!nombreCompleto || nombreCompleto === ' ') {
                 nombreCompleto = 'Sin nombre';
               }

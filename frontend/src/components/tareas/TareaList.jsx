@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Alert, Spinner, Form, Modal, InputGroup, Badge } from 'react-bootstrap';
+import { toast } from 'react-toastify';
 import TareaItem from './TareaItem';
 import TareaForm from './TareaForm';
 import TareaEdit from './TareaEdit';
 import tareaService from '../../services/tareaService';
+import api from '../../services/api';
 
 // Componente principal para la gestión y listado de tareas
 const TareaList = () => {
@@ -101,22 +103,18 @@ const TareaList = () => {
     }
   };
 
-  // Cargar lista de empleados disponibles
+  // Cargar lista de empleados disponibles desde el backend
   const loadEmpleados = async () => {
     try {
-      const empleadosReales = [
-        { id: 1, first_name: 'Admin', last_name: 'Principal', username: 'admin', email: 'admin@inmobiliaria.com' },
-        { id: 2, first_name: 'Juan', last_name: 'Pérez', username: 'juanperez', email: 'juan@inmobiliaria.com' },
-        { id: 3, first_name: 'María', last_name: 'Gómez', username: 'mariagomez', email: 'maria@inmobiliaria.com' },
-        { id: 4, first_name: 'Ana', last_name: 'Martínez', username: 'anamartinez', email: 'ana@inmobiliaria.com' },
-        { id: 5, first_name: 'Pedro', last_name: 'Rodríguez', username: 'pedrorodriguez', email: 'pedro@inmobiliaria.com' },
-        { id: 6, first_name: 'Laura', last_name: 'García', username: 'lauragarcia', email: 'laura@inmobiliaria.com' },
-        { id: 7, first_name: 'Diego', last_name: 'Sánchez', username: 'diegosanchez', email: 'diego@inmobiliaria.com' }
-      ];
-      setEmpleados(empleadosReales);
-      console.log('✅ Empleados cargados:', empleadosReales.length);
+      console.log('🔄 Cargando empleados del servidor...');
+      const response = await api.get('/auth/agentes/');
+      const empleadosCargados = response.data.results || response.data;
+      setEmpleados(empleadosCargados);
+      console.log('✅ Empleados cargados:', empleadosCargados.length);
     } catch (err) {
-      console.error('Error cargando empleados:', err);
+      console.error('❌ Error cargando empleados:', err);
+      toast.error('Error al cargar los empleados');
+      setEmpleados([]);
     }
   };
 
@@ -132,6 +130,7 @@ const TareaList = () => {
       // Esperar a que Bootstrap termine la transición del modal (300ms min)
       setTimeout(() => {
         loadTareas();
+        loadEmpleados(); // Recargar empleados en caso de cambios
       }, 350);
     } catch (err) {
       console.error('Error creando tarea:', err);
@@ -150,10 +149,11 @@ const TareaList = () => {
       setShowEdit(false);
       setEditingTarea(null);
       
-      // Esperar a que Bootstrap termine de remover el modal antes de actualizar datos
-      requestAnimationFrame(async () => {
-        await loadTareas();
-      });
+      // Esperar a que Bootstrap termine la transición del modal (300ms min)
+      setTimeout(() => {
+        loadTareas();
+        loadEmpleados(); // Recargar empleados en caso de cambios
+      }, 350);
     } catch (err) {
       console.error('Error actualizando tarea:', err);
       setError('Error al actualizar la tarea');
@@ -196,6 +196,7 @@ const TareaList = () => {
 
   // Iniciar edición de tarea
   const handleEditTarea = (tarea) => {
+    loadEmpleados(); // Recargar empleados antes de abrir el modal de edición
     setEditingTarea(tarea);
     setShowEdit(true);
   };
@@ -254,7 +255,10 @@ const TareaList = () => {
             <Button 
               variant="success" 
               size="lg"
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                loadEmpleados(); // Recargar empleados antes de abrir el modal
+                setShowCreateModal(true);
+              }}
               className="fw-bold px-4"
               disabled={!!error && tareas.length === 0}
             >

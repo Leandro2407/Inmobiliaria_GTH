@@ -5,11 +5,12 @@ from usuarios.models import Usuario
 class Cliente(models.Model):
     """Modelo para gestionar clientes"""
     
+    # 🔄 Actualizado: Nuevos nombres para mostrar, manteniendo valores internos
     CATEGORIA_CHOICES = [
-        ('alquiler', 'Alquiler'),
-        ('compra', 'Compra'),
-        ('venta', 'Venta'),
-        ('ambos', 'Alquiler y Compra'),
+        ('alquiler', 'Inquilino'),           # Cambiado de 'Alquiler' a 'Inquilino'
+        ('compra', 'Comprador'),              # Cambiado de 'Compra' a 'Comprador'
+        ('venta', 'Venta'),                   # Se mantiene igual
+        ('ambas', 'Ambos (Inquilino/Comprador)'),  # 🆕 Nueva categoría
     ]
     
     ESTADO_CHOICES = [
