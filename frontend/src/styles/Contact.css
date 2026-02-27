@@ -108,6 +108,22 @@
   height: 45px;
   border: 2px solid #000;
   border-radius: 50%;
+}
+
+/* wrapper for Instagram button under contact social */
+.instagram-btn-wrapper {
+  width: 100%;  /* Antes era: max-width: 228px; */
+  margin: 0 auto;
+}
+
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  border: 2px solid #000;
+  border-radius: 50%;
   color: #000;
   transition: all 0.3s ease;
 }

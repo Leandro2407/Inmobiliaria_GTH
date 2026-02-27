@@ -136,24 +136,24 @@ const Contact = () => {
 
                   <div className="contact-social text-center mt-3">
                     <p className="text-muted mb-2">También podés seguirnos en nuestras redes</p>
-                    <div className="social-links d-flex justify-content-center gap-3">
-                      {[
-                        { href: "https://www.facebook.com/gthinmobiliaria", icon: "facebook", color: "#1877f2" },
-                        { href: "https://www.instagram.com/gthinmobiliaria?igsh=djliNmZqMGQ1dXkw#", icon: "instagram", color: "#e4405f" },
-                        { href: "#", icon: "linkedin", color: "#0077b5" },
-                        { href: "#", icon: "whatsapp", color: "#25d366" }
-                      ].map((social, index) => (
-                        <a 
-                          key={index}
-                          href={social.href} 
-                          className="social-link"
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          style={{ '--social-color': social.color }}
-                        >
-                          <i className={`fab fa-${social.icon}`}></i>
-                        </a>
-                      ))}
+                    <div className="d-grid gap-2 mb-3 instagram-btn-wrapper">
+                      {/* Instagram button styled like the WhatsApp button and full width */}
+                      <Button
+                        as="a"
+                        href="https://www.instagram.com/gthinmobiliaria?igsh=djliNmZqMGQ1dXkw#"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="lg"
+                        className="w-100"
+                        style={{
+                          backgroundColor: '#e4405f',
+                          borderColor: '#e4405f',
+                          color: 'white'
+                        }}
+                      >
+                        <i className="fab fa-instagram me-2"></i>
+                        Instagram
+                      </Button>
                     </div>
                   </div>
                 </Card.Body>

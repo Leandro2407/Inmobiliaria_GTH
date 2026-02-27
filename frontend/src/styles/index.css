@@ -86,10 +86,15 @@ code {
 /* Service Cards */
 .service-card {
   transition: transform 0.3s ease;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
 }
 
 .service-card:hover {
   transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* Footer */

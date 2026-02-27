@@ -1,0 +1,34 @@
+/* Inmobiliaria_GTH/frontend/src/styles/PropertyDetailPage.css */
+
+/* Estilos para el breadcrumb - elimina colores de link y subrayado */
+.custom-breadcrumb .breadcrumb-item a {
+  color: #000000 !important;
+  text-decoration: none !important;
+  background-color: transparent !important;
+}
+
+/* Estado cuando el link ya fue visitado */
+.custom-breadcrumb .breadcrumb-item a:visited {
+  color: #000000 !important;
+}
+
+/* Estado cuando se está haciendo click */
+.custom-breadcrumb .breadcrumb-item a:active {
+  color: #000000 !important;
+}
+
+/* Estado cuando se pasa el mouse por encima */
+.custom-breadcrumb .breadcrumb-item a:hover {
+  color: #333333 !important;
+  text-decoration: underline !important;
+}
+
+/* Estilo para el separador (/) entre los items */
+.custom-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+  color: #6c757d !important;
+}
+
+/* Estilo para el item activo (el último, que no es link) */
+.custom-breadcrumb .breadcrumb-item.active {
+  color: #6c757d !important;
+}
