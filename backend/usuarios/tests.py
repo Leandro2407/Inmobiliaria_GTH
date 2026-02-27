@@ -49,3 +49,24 @@ class EmpleadoCreateTests(TestCase):
 		response = self.client.post('/api/auth/empleados/', payload, format='json')
 		self.assertIn(response.status_code, (401, 403))
 		self.assertFalse(Usuario.objects.filter(email='agente2@example.com').exists())
+
+	def test_register_creates_cliente_record(self):
+		"""Al registrarse como cliente debe aparecer un objeto Cliente."""
+		# ningún usuario autenticado es necesario (AllowAny)
+		payload = {
+		    'email': 'cliente1@example.com',
+		    'username': 'cliente1',
+		    'first_name': 'Cliente',
+		    'last_name': 'Uno',
+		    'telefono': '+549387000002',
+		    # rol no se envía para usar el default
+		    'password': 'passFuerte123',
+		    'password2': 'passFuerte123'
+		}
+		response = self.client.post('/api/auth/register/', payload, format='json')
+		self.assertEqual(response.status_code, 201)
+		self.assertTrue(Usuario.objects.filter(email='cliente1@example.com', rol='cliente').exists())
+		# cliente asociado
+		from clientes.models import Cliente
+		self.assertTrue(Cliente.objects.filter(email='cliente1@example.com').exists())
+
