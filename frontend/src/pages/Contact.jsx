@@ -10,8 +10,8 @@ const Contact = () => {
   const mailtoContact = `mailto:contacto@gthinmobiliaria.com?subject=${encodeURIComponent('Consulta desde sitio')}`;
   const whatsappNumber = '+543874123456';
   const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
-  const telPrimary = 'tel:+543874123456';
-  const telSecondary = 'tel:+543874123457';
+  const telPrimary = 'tel:+5493873115079';
+  const telSecondary = 'tel:+5493875503443';
 
   return (
     <div className="contact-page">
@@ -83,8 +83,8 @@ const Contact = () => {
                     <div className="contact-text">
                       <h6 className="fw-bold text-dark mb-2">Llámanos</h6>
                       <p className="text-muted mb-0">
-                        +54 387 412-3456<br />
-                        +54 387 412-3457
+                        +54 3873 11-5079<br />
+                        +54 3875 50-3443
                       </p>
                     </div>
                   </div>
@@ -124,11 +124,11 @@ const Contact = () => {
                     </Button>
                     <Button as="a" href={telPrimary} variant="outline-secondary" size="lg">
                       <i className="fas fa-phone me-2"></i>
-                      Llamar: +54 387 412-3456
+                      Llamar: +54 3873 11-5079
                     </Button>
                     <Button as="a" href={telSecondary} variant="outline-secondary" size="lg">
                       <i className="fas fa-phone me-2"></i>
-                      Llamar: +54 387 412-3457
+                      Llamar: +54 3875 50-3443
                     </Button>
                   </div>
 

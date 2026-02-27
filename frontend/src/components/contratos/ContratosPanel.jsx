@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Row, Col } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import clienteService from '../../services/clienteService';
-import contratoService from '../../services/contratoService';
 import SelectorClienteContratoModal from './SelectorClienteContratoModal';
 import ContratoForm from './ContratoForm';
 import ContratoList from './ContratoList';

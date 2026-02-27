@@ -141,7 +141,13 @@ const ContratoDetalle = ({ show, onHide, contratoId, onEdit }) => {
                       {contrato.propiedad_info?.tipo}
                     </Badge>
                   </p>
-                  <p><strong>Precio:</strong> {formatCurrency(contrato.propiedad_info?.precio)}</p>
+                  <p>
+  <strong>Precio:</strong>{' '}
+  {contrato.propiedad_info?.precio_display || 
+    (contrato.propiedad_info?.precio_venta ? formatCurrency(contrato.propiedad_info.precio_venta) : 
+     contrato.propiedad_info?.precio_alquiler ? formatCurrency(contrato.propiedad_info.precio_alquiler) : 
+     'No especificado')}
+</p>
                 </Card.Body>
               </Card>
             </Col>

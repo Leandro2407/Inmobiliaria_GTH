@@ -51,6 +51,7 @@ const Home = () => {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false); // <-- Nuevo estado agregado
 
   // Formatear número con separadores de miles
   const formatNumber = (value) => {
@@ -65,17 +66,25 @@ const Home = () => {
     });
   };
 
-  // Debounced suggestions
+  // Debounced suggestions - Actualizado para detectar filtros
   useEffect(() => {
     const handler = setTimeout(async () => {
-      const term = searchFilters.search?.trim();
-      if (!term || term.length < 2) {
+      const term = searchFilters.search?.trim() || '';
+      const hasText = term.length >= 2;
+      const hasFilters = searchFilters.tipo !== '' || searchFilters.categoria !== '' || searchFilters.barrio !== '' || searchFilters.zona !== '';
+
+      if (!hasText && !hasFilters) {
         setSuggestions([]);
+        setHasSearched(false);
         return;
       }
+
       setLoadingSuggestions(true);
+      setHasSearched(true); // Indicamos que ya se hizo una búsqueda activa
+      
       try {
-        const params = { search: term };
+        const params = {};
+        if (term) params.search = term;
         if (searchFilters.tipo) params.tipo = searchFilters.tipo;
         if (searchFilters.categoria) params.operacion = searchFilters.categoria;
         if (searchFilters.barrio) params.barrio = searchFilters.barrio;
@@ -83,9 +92,10 @@ const Home = () => {
 
         const data = await propiedadService.getPublicas(params);
         const results = Array.isArray(data) ? data : data.results || [];
-        setSuggestions(results.slice(0, 6));
+        setSuggestions(results.slice(0, 6)); // Mostramos hasta 6 resultados rápidos
       } catch (error) {
         console.error('Error cargando sugerencias:', error);
+        setSuggestions([]);
       } finally {
         setLoadingSuggestions(false);
       }
@@ -263,7 +273,7 @@ const Home = () => {
                       </Col>
 
                       <Col md={12}>
-                        <div className="d-flex flex-column">
+                        <div className="d-flex flex-column position-relative">
                           <div className="d-flex align-items-center">
                             <Form.Control
                               type="text"
@@ -279,22 +289,30 @@ const Home = () => {
                             )}
                           </div>
 
-                          {suggestions.length > 0 && (
-                            <div className="suggestions-list bg-white rounded mt-1 p-2 shadow-sm" style={{ maxHeight: 260, overflowY: 'auto' }}>
-                              {suggestions.map(s => (
-                                <div key={s.id} className="suggestion-item d-flex align-items-center py-2" style={{ cursor: 'pointer' }} onClick={() => navigate(`/propiedades/${s.id}`)}>
-                                  <div className="suggestion-thumb me-3">
-                                    <img src={getPropertyImage(s)} alt={s.titulo} style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 6 }} />
+                          {/* Dropdown modificado */}
+                          {(suggestions.length > 0 || (hasSearched && !loadingSuggestions)) && (
+                            <div className="suggestions-list bg-white rounded mt-1 p-2 shadow-sm text-start" style={{ maxHeight: 260, overflowY: 'auto', position: 'absolute', width: '100%', zIndex: 1000, top: '100%', marginTop: '4px' }}>
+                              {suggestions.length > 0 ? (
+                                suggestions.map(s => (
+                                  <div key={s.id} className="suggestion-item d-flex align-items-center py-2 border-bottom" style={{ cursor: 'pointer' }} onClick={() => navigate(`/propiedades/${s.id}`)}>
+                                    <div className="suggestion-thumb me-3">
+                                      <img src={getPropertyImage(s)} alt={s.titulo} style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 6 }} />
+                                    </div>
+                                    <div className="flex-grow-1">
+                                      <div className="suggestion-title fw-semibold text-dark" dangerouslySetInnerHTML={{ __html: renderHighlighted(s.titulo, searchFilters.search) }} />
+                                      <div className="text-muted small">{s.barrio} • {s.zona}</div>
+                                    </div>
+                                    <div className="text-end ms-3">
+                                      <div className="text-primary fw-bold">{formatSuggestionPrice(s)}</div>
+                                    </div>
                                   </div>
-                                  <div className="flex-grow-1">
-                                    <div className="suggestion-title fw-semibold" dangerouslySetInnerHTML={{ __html: renderHighlighted(s.titulo, searchFilters.search) }} />
-                                    <div className="text-muted small">{s.barrio} • {s.zona}</div>
-                                  </div>
-                                  <div className="text-end ms-3">
-                                    <div className="text-primary fw-bold">{formatSuggestionPrice(s)}</div>
-                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-center p-3 text-muted fw-semibold">
+                                  <i className="fas fa-search-minus mb-2 fs-4 d-block"></i>
+                                  No hay propiedades disponibles con esos filtros en este momento.
                                 </div>
-                              ))}
+                              )}
                             </div>
                           )}
                         </div>
