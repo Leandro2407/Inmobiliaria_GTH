@@ -91,7 +91,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   // Efecto para validar fechas cuando cambian
   useEffect(() => {
     const newErrors = { ...errors };
-    
+
     // Validar fecha de inicio
     const errorInicio = validarFechaInicio(formData.fecha_inicio);
     if (errorInicio) {
@@ -99,7 +99,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     } else {
       delete newErrors.fecha_inicio;
     }
-    
+
     // Validar relación entre fechas
     const errorFechas = validarFechas(formData.fecha_inicio, formData.fecha_fin);
     if (errorFechas) {
@@ -107,9 +107,9 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     } else if (formData.fecha_fin) {
       delete newErrors.fecha_fin;
     }
-    
+
     setErrors(newErrors);
-  }, [formData.fecha_inicio, formData.fecha_fin]);
+  }, [formData.fecha_inicio, formData.fecha_fin, errors, validarFechaInicio, validarFechas]);
 
   useEffect(() => {
     if (show) {
@@ -158,12 +158,14 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   const cargarPropiedades = async () => {
     try {
       setLoadingPropiedades(true);
-      console.log('🔄 Cargando propiedades para contrato...');
-      const response = await propiedadService.getAll();
-      
+      console.log('🔄 Cargando propiedades disponibles para contrato...');
+
+      // Cargar solo propiedades disponibles (estado='disponible')
+      const response = await propiedadService.getAll({ estado: 'disponible' });
+
       // Manejar diferentes formatos de respuesta
       let propiedadesData = [];
-      
+
       if (Array.isArray(response)) {
         propiedadesData = response;
       } else if (response && Array.isArray(response.results)) {
@@ -171,14 +173,17 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       } else if (response && typeof response === 'object') {
         propiedadesData = [response];
       }
-      
-      console.log('✅ Propiedades cargadas:', propiedadesData.length);
-      console.log('📋 Detalles de propiedades:', propiedadesData);
-      
+
+      console.log('✅ Propiedades disponibles cargadas:', propiedadesData.length);
+
+      if (propiedadesData.length === 0) {
+        console.warn('⚠️ No hay propiedades disponibles');
+      }
+
       setPropiedades(propiedadesData);
     } catch (error) {
       console.error('❌ Error al cargar propiedades:', error);
-      toast.error('Error al cargar las propiedades');
+      toast.error('Error al cargar las propiedades disponibles');
       setPropiedades([]);
     } finally {
       setLoadingPropiedades(false);
