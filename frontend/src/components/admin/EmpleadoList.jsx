@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Spinner } from 'react-bootstrap';
+import { Card, Table, Button, Modal, Spinner, Alert } from 'react-bootstrap';
 import api from '../../services/api';
 import { toast } from 'react-toastify';
 import EmpleadoForm from './EmpleadoForm';
@@ -77,12 +77,34 @@ const EmpleadoList = () => {
     <Card className="shadow-sm border-0">
       <Card.Body>
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">Empleados</h5>
+          <h5 className="mb-0">
+            <i className="fas fa-users me-2"></i>
+            Empleados
+          </h5>
           <div>
-            <Button variant="outline-secondary" className="me-2" onClick={cargarEmpleados}>Refrescar</Button>
-            <Button variant="dark" onClick={() => setShowCreateModal(true)} disabled={!isAdmin} title={!isAdmin ? 'Solo administradores pueden crear empleados' : ''}>Nuevo empleado</Button>
+            <Button variant="outline-secondary" className="me-2" onClick={cargarEmpleados}>
+              <i className="fas fa-sync me-2"></i>
+              Refrescar
+            </Button>
+            <Button 
+              variant="dark" 
+              onClick={() => setShowCreateModal(true)} 
+              disabled={!isAdmin}
+              title={!isAdmin ? 'Se necesita ser administrador' : 'Crear nuevo empleado'}
+            >
+              <i className="fas fa-plus me-2"></i>
+              Nuevo empleado
+            </Button>
           </div>
         </div>
+
+        {/* Alerta para agentes sin permisos */}
+        {!isAdmin && (
+          <Alert variant="warning" className="mb-3">
+            <i className="fas fa-lock me-2"></i>
+            <strong>Acceso restringido:</strong> Se necesita ser administrador para crear, editar o eliminar empleados.
+          </Alert>
+        )}
 
         {loading ? (
           <div className="text-center"><Spinner animation="border" /></div>
@@ -119,7 +141,7 @@ const EmpleadoList = () => {
                       size="sm"
                       className="me-1"
                       onClick={() => handleEdit(e)}
-                      title={!isAdmin ? 'Solo administradores pueden editar empleados' : 'Editar'}
+                      title={!isAdmin ? 'Se necesita ser administrador para editar' : 'Editar empleado'}
                       disabled={!isAdmin}
                     >
                       <i className="fas fa-edit"></i>
@@ -128,7 +150,7 @@ const EmpleadoList = () => {
                       variant="outline-dark"
                       size="sm"
                       onClick={() => openDeleteModal(e)}
-                      title={!isAdmin ? 'Solo administradores pueden eliminar empleados' : 'Eliminar'}
+                      title={!isAdmin ? 'Se necesita ser administrador para eliminar' : 'Eliminar empleado'}
                       disabled={!isAdmin}
                     >
                       <i className="fas fa-trash"></i>
