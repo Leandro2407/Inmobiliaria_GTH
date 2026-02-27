@@ -13,7 +13,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     monto: '',
     porcentaje_comision: '',
     comision: '',
-    estado: 'activo', // 🔒 Estado por defecto siempre 'activo' para nuevos contratos
+    estado: 'activo', 
     descripcion: ''
   });
   const [propiedades, setPropiedades] = useState([]);
@@ -22,7 +22,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
 
-  // Obtener fecha actual en formato YYYY-MM-DD
   const getFechaActual = () => {
     const ahora = new Date();
     const year = ahora.getFullYear();
@@ -31,7 +30,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     return `${year}-${month}-${day}`;
   };
 
-  // Función para calcular la comisión basada en el monto y el porcentaje
   const calcularComision = (monto, porcentaje) => {
     if (monto && porcentaje && !isNaN(monto) && !isNaN(porcentaje)) {
       const montoNum = parseFloat(monto);
@@ -43,7 +41,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     return '';
   };
 
-  // Validar que la fecha de fin sea posterior a la fecha de inicio
   const validarFechas = React.useCallback((fechaInicio, fechaFin) => {
     if (fechaInicio && fechaFin) {
       const inicio = new Date(fechaInicio);
@@ -53,7 +50,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         return 'La fecha de fin no puede ser anterior a la fecha de inicio';
       }
       
-      // Validar que la fecha de fin sea al menos 1 día después
       const diferenciaDias = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24));
       if (diferenciaDias < 1) {
         return 'La fecha de fin debe ser posterior a la fecha de inicio';
@@ -62,13 +58,11 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     return '';
   }, []);
 
-  // Validar que la fecha de inicio no sea anterior a hoy
   const validarFechaInicio = React.useCallback((fecha) => {
     if (fecha) {
       const hoy = new Date(getFechaActual());
       const fechaInicio = new Date(fecha);
       
-      // Resetear horas para comparar solo fechas
       hoy.setHours(0, 0, 0, 0);
       fechaInicio.setHours(0, 0, 0, 0);
       
@@ -79,7 +73,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     return '';
   }, []);
 
-  // Efecto para actualizar la comisión cuando cambia el monto o el porcentaje
   useEffect(() => {
     const comisionCalculada = calcularComision(formData.monto, formData.porcentaje_comision);
     setFormData(prev => ({
@@ -88,12 +81,10 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     }));
   }, [formData.monto, formData.porcentaje_comision]);
 
-  // Efecto para validar fechas cuando cambian
   useEffect(() => {
     setErrors((prevErrors) => {
       const newErrors = { ...prevErrors };
 
-      // Validar fecha de inicio
       const errorInicio = validarFechaInicio(formData.fecha_inicio);
       if (errorInicio) {
         newErrors.fecha_inicio = errorInicio;
@@ -101,7 +92,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         delete newErrors.fecha_inicio;
       }
 
-      // Validar relación entre fechas
       const errorFechas = validarFechas(formData.fecha_inicio, formData.fecha_fin);
       if (errorFechas) {
         newErrors.fecha_fin = errorFechas;
@@ -117,7 +107,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     if (show) {
       cargarPropiedades();
       if (contrato) {
-        // 🔄 Es edición - cargar todos los datos incluyendo el estado guardado
         let porcentajeCalculado = '';
         if (contrato.monto && contrato.comision && parseFloat(contrato.monto) > 0) {
           const montoNum = parseFloat(contrato.monto);
@@ -135,11 +124,10 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
           monto: contrato.monto || '',
           porcentaje_comision: porcentajeCalculado,
           comision: contrato.comision || '',
-          estado: contrato.estado || 'activo', // 🔄 En edición, cargar el estado guardado
+          estado: contrato.estado || 'activo',
           descripcion: contrato.descripcion || ''
         });
       } else {
-        // 🆕 Es creación - estado siempre 'activo' y no modificable
         setFormData({
           tipo: 'alquiler',
           propiedad: '',
@@ -148,24 +136,26 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
           monto: '',
           porcentaje_comision: '',
           comision: '',
-          estado: 'activo', // 🔒 Fijo en 'activo' para nuevos contratos
+          estado: 'activo',
           descripcion: ''
         });
-      }
+    }
       setErrors({});
       setSubmitError('');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, contrato]);
 
   const cargarPropiedades = async () => {
     try {
       setLoadingPropiedades(true);
-      console.log('🔄 Cargando propiedades para contrato...');
-      const response = await propiedadService.getAll();
       
-      // Manejar diferentes formatos de respuesta
+      // ✅ FIX: Si es nuevo contrato, solo traer propiedades 'disponibles'
+      // Si estamos editando, traemos todas para no perder la propiedad actualmente seleccionada
+      const params = contrato ? {} : { estado: 'disponible' };
+      const response = await propiedadService.getAll(params);
+      
       let propiedadesData = [];
-      
       if (Array.isArray(response)) {
         propiedadesData = response;
       } else if (response && Array.isArray(response.results)) {
@@ -173,9 +163,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       } else if (response && typeof response === 'object') {
         propiedadesData = [response];
       }
-      
-      console.log('✅ Propiedades cargadas:', propiedadesData.length);
-      console.log('📋 Detalles de propiedades:', propiedadesData);
       
       setPropiedades(propiedadesData);
     } catch (error) {
@@ -190,7 +177,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Permitir solo números y un punto decimal para campos numéricos
     if (name === 'monto' || name === 'porcentaje_comision' || name === 'comision') {
       const regex = /^\d*\.?\d*$/;
       if (value === '' || regex.test(value)) {
@@ -206,7 +192,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       }));
     }
     
-    // Limpiar error cuando el usuario empiece a escribir
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -227,7 +212,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     if (!formData.fecha_inicio) {
       newErrors.fecha_inicio = 'La fecha de inicio es obligatoria';
     } else {
-      // Validar fecha de inicio no anterior a hoy
       const errorInicio = validarFechaInicio(formData.fecha_inicio);
       if (errorInicio) {
         newErrors.fecha_inicio = errorInicio;
@@ -235,7 +219,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     }
     
     if (formData.fecha_fin) {
-      // Validar relación entre fechas
       const errorFechas = validarFechas(formData.fecha_inicio, formData.fecha_fin);
       if (errorFechas) {
         newErrors.fecha_fin = errorFechas;
@@ -255,7 +238,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validar formulario antes de enviar
     if (!validateForm()) {
       setLoading(false);
       toast.error('Por favor corrige los errores en el formulario');
@@ -275,14 +257,12 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         comision: formData.comision ? parseFloat(formData.comision) : null,
       };
 
-      console.log('📤 Enviando datos del contrato:', contratoData);
-
       if (contrato && contrato.id) {
         await contratoService.update(contrato.id, contratoData);
         toast.success('Contrato actualizado correctamente');
       } else {
         await contratoService.create(contratoData);
-        toast.success('Contrato creado correctamente');
+        toast.success('Contrato creado exitosamente. La propiedad ya no figura como disponible.');
       }
 
       onHide();
@@ -292,15 +272,12 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       }, 350);
     } catch (error) {
       console.error('❌ Error al guardar contrato:', error);
-      console.error('Detalles del error:', error.response?.data);
-      
       let errorMessage = 'Error al guardar el contrato';
       
       if (error.response?.status === 405) {
         errorMessage = 'Error 405: Método no permitido. Verifica la configuración del backend.';
       } else if (error.response?.data) {
         const errorData = error.response.data;
-        
         if (typeof errorData === 'object') {
           const errorDetails = Object.values(errorData).flat().join(', ');
           errorMessage = errorDetails || errorMessage;
@@ -328,14 +305,12 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     }
   };
 
-  // Función segura para obtener propiedades de objetos
   const getSafe = (obj, path, defaultValue = '') => {
     return path.split('.').reduce((acc, key) => {
       return acc && acc[key] !== undefined ? acc[key] : defaultValue;
     }, obj);
   };
 
-  // Si no hay cliente seleccionado, mostrar advertencia
   if (show && (!cliente || !cliente.id)) {
     return (
       <Modal show={show} onHide={onHide} size="lg">
@@ -356,7 +331,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     );
   }
 
-  // Determinar si es modo edición
   const esEdicion = !!contrato;
 
   return (
@@ -385,9 +359,9 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
                   onChange={handleChange}
                   isInvalid={!!errors.tipo}
                 >
+                  {/* ✅ FIX: Solo opciones de alquiler y venta */}
                   <option value="alquiler">Alquiler</option>
                   <option value="venta">Venta</option>
-                  <option value="administracion">Administración</option>
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">
                   {errors.tipo}
@@ -558,7 +532,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
               <Form.Group className="mb-3">
                 <Form.Label>Estado</Form.Label>
                 {esEdicion ? (
-                  // 🔓 Modo edición: Select habilitado con todas las opciones
                   <Form.Select
                     name="estado"
                     value={formData.estado || 'activo'}
@@ -570,7 +543,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
                     <option value="cancelado">Cancelado</option>
                   </Form.Select>
                 ) : (
-                  // 🔒 Modo creación: Select deshabilitado mostrando solo "Activo"
                   <Form.Select
                     name="estado"
                     value="activo"
