@@ -21,6 +21,26 @@ const SALTA_CITIES = [
   'TOLAR GRANDE', 'URUNDEL', 'VAQUEROS' 
 ];
 
+// 🆕 Función para formatear la categoría para mostrar
+const formatCategoriaForDisplay = (categoria) => {
+  const map = {
+    'alquiler': 'Inquilino',
+    'compra': 'Comprador',
+    'ambas': 'Ambos (Inquilino/Comprador)'
+  };
+  return map[categoria] || categoria;
+};
+
+// 🆕 Función para obtener el color del badge según categoría
+const getCategoriaBadgeColor = (categoria) => {
+  const colors = {
+    'alquiler': 'info',
+    'compra': 'primary',
+    'ambas': 'success'
+  };
+  return colors[categoria] || 'secondary';
+};
+
 // Componente de Modal de Confirmación Personalizado
 const ConfirmDeleteModal = ({ show, onHide, onConfirm, clienteNombre }) => {
   return (
@@ -119,9 +139,10 @@ const ClientesPanel = ({ onClienteCreado }) => {
       .matches(/^[0-9]+$/, 'Solo se permiten números'),
     domicilio: Yup.string().required('El domicilio es requerido'),
     ciudad: Yup.string().required('La ciudad es requerida'),
+    // 🔄 Actualizado: Nueva validación para 'ambas'
     categoria: Yup.string()
       .required('La categoría es requerida')
-      .oneOf(['alquiler', 'compra'], 'Seleccione una categoría válida'),
+      .oneOf(['alquiler', 'compra', 'ambas'], 'Seleccione una categoría válida'),
     estado: Yup.string()
       .oneOf(['activo', 'inactivo'], 'Estado inválido')
       .required('El estado es requerido'),
@@ -135,16 +156,13 @@ const ClientesPanel = ({ onClienteCreado }) => {
       } else {
         await clienteService.create(values);
         toast.success('Cliente registrado exitosamente');
-        // Notificar al componente padre sobre la creación
         if (onClienteCreado) {
           onClienteCreado();
         }
       }
       
-      // ✅ FIX: Cerrar modal ANTES de actualizar datos para evitar conflicto DOM
       setShowModal(false);
       
-      // Esperar a que Bootstrap termine la transición del modal (300ms min)
       setTimeout(() => {
         resetForm();
         setClienteEditar(null);
@@ -161,7 +179,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
 
   const handleVer = async (cliente) => {
     try {
-      // Obtener los datos completos del cliente desde el backend
       const clienteCompleto = await clienteService.getById(cliente.id);
       setClienteVer(clienteCompleto);
       setShowViewModal(true);
@@ -173,7 +190,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
 
   const handleEditar = async (cliente) => {
     try {
-      // Obtener los datos completos del cliente desde el backend
       const clienteCompleto = await clienteService.getById(cliente.id);
       setClienteEditar(clienteCompleto);
       setShowModal(true);
@@ -251,8 +267,9 @@ const ClientesPanel = ({ onClienteCreado }) => {
                 className="custom-select"
               >
                 <option value="">Todas las categorías</option>
-                <option value="alquiler">Alquiler</option>
-                <option value="compra">Compra</option>
+                <option value="alquiler">Inquilino</option>
+                <option value="compra">Comprador</option>
+                <option value="ambas">Ambos</option>
               </Form.Select>
             </Col>
             <Col md={3}>
@@ -315,7 +332,9 @@ const ClientesPanel = ({ onClienteCreado }) => {
                         <td>{cliente.email}</td>
                         <td>{cliente.telefono}</td>
                         <td>
-                          <span className="text-capitalize">{cliente.categoria}</span>
+                          <Badge bg={getCategoriaBadgeColor(cliente.categoria)} className="text-capitalize">
+                            {formatCategoriaForDisplay(cliente.categoria)}
+                          </Badge>
                         </td>
                         <td>
                           <Badge bg={getBadgeColor(cliente.estado)} className="text-capitalize">
@@ -433,7 +452,9 @@ const ClientesPanel = ({ onClienteCreado }) => {
                   <Row>
                     <Col md={4} className="mb-3">
                       <p className="mb-1 text-muted small">Categoría:</p>
-                      <p className="fw-bold mb-0 text-capitalize">{clienteVer.categoria}</p>
+                      <Badge bg={getCategoriaBadgeColor(clienteVer.categoria)} className="text-capitalize">
+                        {formatCategoriaForDisplay(clienteVer.categoria)}
+                      </Badge>
                     </Col>
                     <Col md={4} className="mb-3">
                       <p className="mb-1 text-muted small">Estado:</p>
@@ -672,8 +693,9 @@ const ClientesPanel = ({ onClienteCreado }) => {
                         className="custom-select"
                       >
                         <option value="">Seleccione...</option>
-                        <option value="alquiler">Alquiler</option>
-                        <option value="compra">Compra</option>
+                        <option value="alquiler">Inquilino</option>
+                        <option value="compra">Comprador</option>
+                        <option value="ambas">Ambos (Inquilino/Comprador)</option>
                       </Form.Select>
                       <Form.Control.Feedback type="invalid">
                         {errors.categoria}
