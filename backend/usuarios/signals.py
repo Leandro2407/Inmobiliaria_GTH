@@ -22,12 +22,15 @@ def crear_cliente_al_registrarse(sender, instance, created, **kwargs):
     if instance.rol != 'cliente':
         return
 
+    # Generamos un DNI único temporal en caso de que el usuario no lo haya ingresado
+    dni_temporal = instance.dni if instance.dni else f"PENDIENTE-{instance.id}"
+
     # Los campos del modelo Cliente son obligatorios, así que usamos valores
     # por defecto razonables cuando la información está vacía.
     datos = {
         'nombre': instance.first_name or instance.username or 'Cliente',
         'apellido': instance.last_name or '',
-        'dni': instance.dni or 'Sin DNI',
+        'dni': dni_temporal,
         'email': instance.email,
         'telefono': instance.telefono or '000000000',
         'domicilio': 'No especificado',

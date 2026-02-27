@@ -73,7 +73,10 @@ const AuthModal = ({ show, onHide }) => {
         toast.success('¡Bienvenido de nuevo!');
         onHide();
       } else if (mode === 'register') {
-        await dispatch(register(values)).unwrap();
+        // Extraemos acceptTerms para no enviarlo al backend
+        const { acceptTerms, ...dataToSend } = values; 
+        
+        await dispatch(register(dataToSend)).unwrap();
         toast.success('¡Registro exitoso!');
         onHide();
       } else if (mode === 'forgot') {
