@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col, Alert, InputGroup } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import contratoService from '../../services/contratoService';
 import propiedadService from '../../services/propiedadService';
@@ -11,8 +11,9 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     fecha_inicio: '',
     fecha_fin: '',
     monto: '',
+    porcentaje_comision: '',
     comision: '',
-    estado: 'activo',
+    estado: 'activo', // 🔒 Estado por defecto siempre 'activo' para nuevos contratos
     descripcion: ''
   });
   const [propiedades, setPropiedades] = useState([]);
@@ -21,29 +22,131 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
 
+  // Obtener fecha actual en formato YYYY-MM-DD
+  const getFechaActual = () => {
+    const ahora = new Date();
+    const year = ahora.getFullYear();
+    const month = String(ahora.getMonth() + 1).padStart(2, '0');
+    const day = String(ahora.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Función para calcular la comisión basada en el monto y el porcentaje
+  const calcularComision = (monto, porcentaje) => {
+    if (monto && porcentaje && !isNaN(monto) && !isNaN(porcentaje)) {
+      const montoNum = parseFloat(monto);
+      const porcentajeNum = parseFloat(porcentaje);
+      if (montoNum > 0 && porcentajeNum > 0) {
+        return (montoNum * porcentajeNum / 100).toFixed(2);
+      }
+    }
+    return '';
+  };
+
+  // Validar que la fecha de fin sea posterior a la fecha de inicio
+  const validarFechas = (fechaInicio, fechaFin) => {
+    if (fechaInicio && fechaFin) {
+      const inicio = new Date(fechaInicio);
+      const fin = new Date(fechaFin);
+      
+      if (fin < inicio) {
+        return 'La fecha de fin no puede ser anterior a la fecha de inicio';
+      }
+      
+      // Validar que la fecha de fin sea al menos 1 día después
+      const diferenciaDias = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24));
+      if (diferenciaDias < 1) {
+        return 'La fecha de fin debe ser posterior a la fecha de inicio';
+      }
+    }
+    return '';
+  };
+
+  // Validar que la fecha de inicio no sea anterior a hoy
+  const validarFechaInicio = (fecha) => {
+    if (fecha) {
+      const hoy = new Date(getFechaActual());
+      const fechaInicio = new Date(fecha);
+      
+      // Resetear horas para comparar solo fechas
+      hoy.setHours(0, 0, 0, 0);
+      fechaInicio.setHours(0, 0, 0, 0);
+      
+      if (fechaInicio < hoy) {
+        return 'La fecha de inicio no puede ser anterior a hoy';
+      }
+    }
+    return '';
+  };
+
+  // Efecto para actualizar la comisión cuando cambia el monto o el porcentaje
+  useEffect(() => {
+    const comisionCalculada = calcularComision(formData.monto, formData.porcentaje_comision);
+    setFormData(prev => ({
+      ...prev,
+      comision: comisionCalculada
+    }));
+  }, [formData.monto, formData.porcentaje_comision]);
+
+  // Efecto para validar fechas cuando cambian
+  useEffect(() => {
+    const newErrors = { ...errors };
+    
+    // Validar fecha de inicio
+    const errorInicio = validarFechaInicio(formData.fecha_inicio);
+    if (errorInicio) {
+      newErrors.fecha_inicio = errorInicio;
+    } else {
+      delete newErrors.fecha_inicio;
+    }
+    
+    // Validar relación entre fechas
+    const errorFechas = validarFechas(formData.fecha_inicio, formData.fecha_fin);
+    if (errorFechas) {
+      newErrors.fecha_fin = errorFechas;
+    } else if (formData.fecha_fin) {
+      delete newErrors.fecha_fin;
+    }
+    
+    setErrors(newErrors);
+  }, [formData.fecha_inicio, formData.fecha_fin]);
+
   useEffect(() => {
     if (show) {
       cargarPropiedades();
       if (contrato) {
+        // 🔄 Es edición - cargar todos los datos incluyendo el estado guardado
+        let porcentajeCalculado = '';
+        if (contrato.monto && contrato.comision && parseFloat(contrato.monto) > 0) {
+          const montoNum = parseFloat(contrato.monto);
+          const comisionNum = parseFloat(contrato.comision);
+          if (montoNum > 0 && comisionNum > 0) {
+            porcentajeCalculado = ((comisionNum / montoNum) * 100).toFixed(2);
+          }
+        }
+
         setFormData({
           tipo: contrato.tipo || 'alquiler',
           propiedad: contrato.propiedad || '',
           fecha_inicio: contrato.fecha_inicio || '',
           fecha_fin: contrato.fecha_fin || '',
           monto: contrato.monto || '',
+          porcentaje_comision: porcentajeCalculado,
           comision: contrato.comision || '',
-          estado: contrato.estado || 'activo',
+          estado: contrato.estado || 'activo', // 🔄 En edición, cargar el estado guardado
           descripcion: contrato.descripcion || ''
         });
       } else {
+        // 🆕 Es creación - estado siempre 'activo' y no modificable
         setFormData({
           tipo: 'alquiler',
           propiedad: '',
           fecha_inicio: '',
           fecha_fin: '',
           monto: '',
+          porcentaje_comision: '',
           comision: '',
-          estado: 'activo',
+          estado: 'activo', // 🔒 Fijo en 'activo' para nuevos contratos
           descripcion: ''
         });
       }
@@ -58,7 +161,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       console.log('🔄 Cargando propiedades para contrato...');
       const response = await propiedadService.getAll();
       
-      // ✅ Manejar diferentes formatos de respuesta
+      // Manejar diferentes formatos de respuesta
       let propiedadesData = [];
       
       if (Array.isArray(response)) {
@@ -84,10 +187,23 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Permitir solo números y un punto decimal para campos numéricos
+    if (name === 'monto' || name === 'porcentaje_comision' || name === 'comision') {
+      const regex = /^\d*\.?\d*$/;
+      if (value === '' || regex.test(value)) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+    
     // Limpiar error cuando el usuario empiece a escribir
     if (errors[name]) {
       setErrors(prev => ({
@@ -108,7 +224,22 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     }
     if (!formData.fecha_inicio) {
       newErrors.fecha_inicio = 'La fecha de inicio es obligatoria';
+    } else {
+      // Validar fecha de inicio no anterior a hoy
+      const errorInicio = validarFechaInicio(formData.fecha_inicio);
+      if (errorInicio) {
+        newErrors.fecha_inicio = errorInicio;
+      }
     }
+    
+    if (formData.fecha_fin) {
+      // Validar relación entre fechas
+      const errorFechas = validarFechas(formData.fecha_inicio, formData.fecha_fin);
+      if (errorFechas) {
+        newErrors.fecha_fin = errorFechas;
+      }
+    }
+    
     if (!formData.monto) {
       newErrors.monto = 'El monto es obligatorio';
     } else if (parseFloat(formData.monto) <= 0) {
@@ -121,14 +252,16 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setSubmitError('');
-
-    // Validar formulario
+    
+    // Validar formulario antes de enviar
     if (!validateForm()) {
       setLoading(false);
+      toast.error('Por favor corrige los errores en el formulario');
       return;
     }
+
+    setLoading(true);
+    setSubmitError('');
 
     try {
       const contratoData = {
@@ -136,6 +269,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         cliente: cliente.id,
         propiedad: parseInt(formData.propiedad),
         monto: parseFloat(formData.monto),
+        porcentaje_comision: formData.porcentaje_comision ? parseFloat(formData.porcentaje_comision) : null,
         comision: formData.comision ? parseFloat(formData.comision) : null,
       };
 
@@ -149,10 +283,8 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         toast.success('Contrato creado correctamente');
       }
 
-      // ✅ FIX: Cerrar modal ANTES de ejecutar onSuccess para evitar conflicto DOM
       onHide();
       
-      // Esperar a que Bootstrap termine la transición del modal (300ms min)
       setTimeout(() => {
         onSuccess();
       }, 350);
@@ -222,12 +354,15 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     );
   }
 
+  // Determinar si es modo edición
+  const esEdicion = !!contrato;
+
   return (
     <Modal show={show} onHide={onHide} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
           <i className="fas fa-file-contract me-2"></i>
-          {contrato ? 'Editar Contrato' : 'Nuevo Contrato'} - {cliente?.nombre_completo}
+          {esEdicion ? 'Editar Contrato' : 'Nuevo Contrato'} - {cliente?.nombre_completo}
         </Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
@@ -276,7 +411,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
                       <option value="">Seleccionar propiedad</option>
                       {Array.isArray(propiedades) && propiedades.map(prop => (
                         <option key={prop.id} value={prop.id}>
-                          {/* ✅ Mostrar información disponible de la propiedad */}
                           {getSafe(prop, 'titulo', 'Propiedad sin título')} - 
                           {getSafe(prop, 'direccion', 'Sin dirección')} - 
                           {getSafe(prop, 'ciudad', 'Sin ciudad')}
@@ -287,7 +421,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
                       {errors.propiedad}
                     </Form.Control.Feedback>
                     
-                    {/* Información sobre las propiedades cargadas */}
                     <div className="mt-2">
                       {propiedades.length === 0 ? (
                         <Alert variant="warning" className="py-2 mb-0 small">
@@ -324,11 +457,16 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
                   name="fecha_inicio"
                   value={formatDateForInput(formData.fecha_inicio)}
                   onChange={handleChange}
+                  min={getFechaActual()}
                   isInvalid={!!errors.fecha_inicio}
                 />
                 <Form.Control.Feedback type="invalid">
                   {errors.fecha_inicio}
                 </Form.Control.Feedback>
+                <Form.Text className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  No se permiten fechas anteriores a hoy
+                </Form.Text>
               </Form.Group>
             </Col>
             <Col md={6}>
@@ -339,7 +477,16 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
                   name="fecha_fin"
                   value={formatDateForInput(formData.fecha_fin)}
                   onChange={handleChange}
+                  min={formData.fecha_inicio || getFechaActual()}
+                  isInvalid={!!errors.fecha_fin}
                 />
+                <Form.Control.Feedback type="invalid">
+                  {errors.fecha_fin}
+                </Form.Control.Feedback>
+                <Form.Text className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Debe ser posterior a la fecha de inicio
+                </Form.Text>
               </Form.Group>
             </Col>
           </Row>
@@ -348,16 +495,17 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Monto *</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  name="monto"
-                  value={formData.monto || ''}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  isInvalid={!!errors.monto}
-                />
+                <InputGroup>
+                  <InputGroup.Text>$</InputGroup.Text>
+                  <Form.Control
+                    type="text"
+                    name="monto"
+                    value={formData.monto || ''}
+                    onChange={handleChange}
+                    placeholder="0.00"
+                    isInvalid={!!errors.monto}
+                  />
+                </InputGroup>
                 <Form.Control.Feedback type="invalid">
                   {errors.monto}
                 </Form.Control.Feedback>
@@ -365,16 +513,20 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
             </Col>
             <Col md={6}>
               <Form.Group className="mb-3">
-                <Form.Label>Comisión</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  name="comision"
-                  value={formData.comision || ''}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                />
+                <Form.Label>Porcentaje de Comisión (%)</Form.Label>
+                <InputGroup>
+                  <Form.Control
+                    type="text"
+                    name="porcentaje_comision"
+                    value={formData.porcentaje_comision || ''}
+                    onChange={handleChange}
+                    placeholder="Ej: 10"
+                  />
+                  <InputGroup.Text>%</InputGroup.Text>
+                </InputGroup>
+                <Form.Text className="text-muted">
+                  Ingresa el porcentaje y la comisión se calculará automáticamente
+                </Form.Text>
               </Form.Group>
             </Col>
           </Row>
@@ -382,17 +534,56 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
+                <Form.Label>Comisión Calculada</Form.Label>
+                <InputGroup>
+                  <InputGroup.Text>$</InputGroup.Text>
+                  <Form.Control
+                    type="text"
+                    name="comision"
+                    value={formData.comision || ''}
+                    onChange={handleChange}
+                    placeholder="0.00"
+                    readOnly
+                    style={{ backgroundColor: '#f8f9fa' }}
+                  />
+                </InputGroup>
+                <Form.Text className="text-muted">
+                  Este campo se calcula automáticamente
+                </Form.Text>
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group className="mb-3">
                 <Form.Label>Estado</Form.Label>
-                <Form.Select
-                  name="estado"
-                  value={formData.estado || 'activo'}
-                  onChange={handleChange}
-                >
-                  <option value="activo">Activo</option>
-                  <option value="pendiente">Pendiente</option>
-                  <option value="finalizado">Finalizado</option>
-                  <option value="cancelado">Cancelado</option>
-                </Form.Select>
+                {esEdicion ? (
+                  // 🔓 Modo edición: Select habilitado con todas las opciones
+                  <Form.Select
+                    name="estado"
+                    value={formData.estado || 'activo'}
+                    onChange={handleChange}
+                  >
+                    <option value="activo">Activo</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="finalizado">Finalizado</option>
+                    <option value="cancelado">Cancelado</option>
+                  </Form.Select>
+                ) : (
+                  // 🔒 Modo creación: Select deshabilitado mostrando solo "Activo"
+                  <Form.Select
+                    name="estado"
+                    value="activo"
+                    disabled
+                    style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed' }}
+                  >
+                    <option value="activo">Activo</option>
+                  </Form.Select>
+                )}
+                {!esEdicion && (
+                  <Form.Text className="text-muted">
+                    <i className="fas fa-lock me-1"></i>
+                    El estado es "Activo" por defecto al crear un contrato
+                  </Form.Text>
+                )}
               </Form.Group>
             </Col>
           </Row>
@@ -420,7 +611,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
           <Button 
             variant="primary" 
             type="submit" 
-            disabled={loading || propiedades.length === 0}
+            disabled={loading || propiedades.length === 0 || Object.keys(errors).length > 0}
           >
             {loading ? (
               <>
@@ -430,7 +621,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
             ) : (
               <>
                 <i className="fas fa-save me-2"></i>
-                {contrato ? 'Actualizar Contrato' : 'Guardar Contrato'}
+                {esEdicion ? 'Actualizar Contrato' : 'Guardar Contrato'}
               </>
             )}
           </Button>

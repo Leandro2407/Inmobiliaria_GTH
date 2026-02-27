@@ -3,6 +3,26 @@ import { Modal, Button, Row, Col, Badge, Spinner, Alert, Card } from 'react-boot
 import { toast } from 'react-toastify';
 import contratoService from '../../services/contratoService';
 
+// 🆕 Función para formatear la categoría para mostrar
+const formatCategoriaForDisplay = (categoria) => {
+  const map = {
+    'alquiler': 'Inquilino',
+    'compra': 'Comprador',
+    'ambas': 'Ambos (Inquilino/Comprador)'
+  };
+  return map[categoria] || categoria;
+};
+
+// 🆕 Función para obtener el color del badge según categoría
+const getCategoriaBadgeColor = (categoria) => {
+  const colors = {
+    'alquiler': 'info',
+    'compra': 'primary',
+    'ambas': 'success'
+  };
+  return colors[categoria] || 'secondary';
+};
+
 const ContratoDetalle = ({ show, onHide, contratoId, onEdit }) => {
   const [contrato, setContrato] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,9 +114,10 @@ const ContratoDetalle = ({ show, onHide, contratoId, onEdit }) => {
                   <p><strong>Nombre:</strong> {contrato.cliente_info?.nombre_completo}</p>
                   <p><strong>Email:</strong> {contrato.cliente_info?.email}</p>
                   <p><strong>Teléfono:</strong> {contrato.cliente_info?.telefono}</p>
-                  <p><strong>Tipo:</strong> 
-                    <Badge bg="info" className="ms-2 text-capitalize">
-                      {contrato.cliente_info?.tipo}
+                  <p>
+                    <strong>Categoría:</strong>{' '}
+                    <Badge bg={getCategoriaBadgeColor(contrato.cliente_info?.categoria)} className="ms-2">
+                      {formatCategoriaForDisplay(contrato.cliente_info?.categoria) || 'No especificada'}
                     </Badge>
                   </p>
                 </Card.Body>
