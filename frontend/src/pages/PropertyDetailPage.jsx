@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Container, Row, Col, Breadcrumb, Carousel, Button, Spinner, Modal } from 'react-bootstrap';
 import propiedadService from '../services/propiedadService';
 import { BACKEND_URL } from '../services/api';
+import '../styles/PropertyDetailPage.css'; // ← IMPORTANTE: Ruta correcta al CSS
 
 const PropertyDetailPage = () => {
   const { id } = useParams();
@@ -95,11 +96,17 @@ const PropertyDetailPage = () => {
   return (
     <section className="py-5 bg-light" style={{ marginTop: '80px' }}>
       <Container>
-        {/* Breadcrumb */}
-        <Breadcrumb className="mb-4">
-          <Breadcrumb.Item href="/">Inicio</Breadcrumb.Item>
-          <Breadcrumb.Item href="/propiedades">Propiedades</Breadcrumb.Item>
-          <Breadcrumb.Item active>{propiedad.titulo}</Breadcrumb.Item>
+        {/* Breadcrumb - AHORA USA LA CLASE custom-breadcrumb */}
+        <Breadcrumb className="mb-4 custom-breadcrumb">
+          <Breadcrumb.Item href="/">
+            Inicio
+          </Breadcrumb.Item>
+          <Breadcrumb.Item href="/propiedades">
+            Propiedades
+          </Breadcrumb.Item>
+          <Breadcrumb.Item active>
+            {propiedad.titulo}
+          </Breadcrumb.Item>
         </Breadcrumb>
 
         <Row className="g-4">

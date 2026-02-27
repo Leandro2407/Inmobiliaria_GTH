@@ -7,6 +7,38 @@ import '../styles/Home.css';
 import propiedadService from '../services/propiedadService';
 import { BACKEND_URL } from '../services/api';
 
+// list of barrios for select dropdown
+const BARRIOS_SALTA = [
+  "17 de Octubre", "20 de Febrero", "25 de Mayo", "9 de Julio", "A.G.A.S.", "Alborada", "Alejandro Heredia",
+  "Alem", "Almudena", "Alto La Viña", "Ampliación Bancario", "Ampliación El Tribuno", "Ampliación Intersindical",
+  "Ampliación San Carlos", "Ana María", "Anzoátegui", "Aráoz", "Arturo Illia", "Asunción", "Autódromo",
+  "Bancario", "Bernardo de Irigoyen", "Bicentenario", "Calixto Gauna", "Canillitas", "Castañares",
+  "Ceferino", "Centro", "Chartas", "Chachapoyas", "Ciudad del Milagro", "Constitución", "Coop. Policial",
+  "Democracia", "Don Ceferino", "Don Emilio", "Don Santiago", "Dos Rosas", "Eduardo Falú", "El Aybal",
+  "El Círculo (I, II, III, IV)", "El Carmen", "El Huaico", "El Jardín", "El Manjón", "El Milagro",
+  "El Pilar", "El Portezuelo", "El Prado", "El Quebracho", "El Sol", "El Tribuno", "España",
+  "Estación Alvarado", "Estrella del Sur", "Finca Valdivia", "Floresta", "Fuerza Aérea", "Gral. Mosconi",
+  "Gral. Belgrano", "Gral. Güemes", "Grand Bourg", "Hernando de Lerma", "Hipódromo", "Independencia",
+  "Intersindical", "Isabel la Católica", "Itaembé", "Jaime Dávalos", "Juan Calchaquí", "Juan Manuel de Rosas",
+  "Juan Pablo II", "Juana Azurduy", "Kira", "La Alborada", "La Loma", "La Lucinda", "La Paz",
+  "La Rivera", "La Tradición", "Las Costas", "Las Leñas", "Latinoamérica", "Libertad", "Limache",
+  "Lomas de Medeiro", "Los Alisos", "Los Ceibos", "Los Gremios", "Los Olivos", "Los Pinos",
+  "Los Sauces", "Luján", "Mirasoles", "Morosini", "Norte Grande", "Nueva Esperanza", "Odisa",
+  "Olivos", "Once de Marzo", "Pablo Saravia", "Palermo (I, II, III)", "Parque Belgrano",
+  "Parque General Belgrano", "Parque La Vega", "Paseo del Siglo", "Patrón Costas", "Periodista",
+  "Portezuelo Norte", "Primera Junta", "Progreso", "Pueblo Nuevo", "Quijano", "Roberto Romero",
+  "Rosario de Lerma (Zona)", "San Antonio", "San Benito", "San Calixto", "San Carlos", "San Cayetano",
+  "San Francisco", "San Francisco Solano", "San Ignacio", "San José", "San Justo", "San Lucas",
+  "San Luis (Delegación)", "San Martín", "San Nicolás", "San Rafael", "San Remo", "San Roque",
+  "Santa Ana (I, II)", "Santa Cecilia", "Santa Clara", "Santa Lucía", "Santa Mónica", "Santa Rita",
+  "Santa Victoria", "Sarmiento", "Siglo XXI", "Solidaridad", "Suiza", "Tauro", "Teresita",
+  "Tránsito", "Tres Cerritos", "Union", "Universidad", "Universitario", "Vaqueros (Límite)",
+  "Velez Sarsfield", "Vicente Solá", "Victoria", "Villa Angelita", "Villa Belgrano", "Villa Blanca",
+  "Villa Chartas", "Villa Cristina", "Villa Estela", "Villa Juanita", "Villa Las Rosas", "Villa Mitre",
+  "Villa Mónica", "Villa Palacios", "Villa Primavera", "Villa Rebeca", "Villa San José",
+  "Villa San Lorenzo", "Villa Soledad", "Vinalar", "Virgen del Rosario"
+];
+
 const Home = () => {
   const [searchFilters, setSearchFilters] = useState({
     tipo: '',
@@ -209,6 +241,9 @@ const Home = () => {
                           onChange={handleFilterChange}
                         >
                           <option value="">Todos los barrios</option>
+                          {BARRIOS_SALTA.map((b, idx) => (
+                            <option key={idx} value={b}>{b}</option>
+                          ))}
                         </Form.Select>
                       </Col>
                       <Col md={3}>
@@ -232,7 +267,7 @@ const Home = () => {
                           <div className="d-flex align-items-center">
                             <Form.Control
                               type="text"
-                              placeholder="Buscar por título..."
+                              placeholder="Buscar propiedad"
                               name="search"
                               value={searchFilters.search}
                               onChange={handleFilterChange}
@@ -392,7 +427,7 @@ const Home = () => {
             <Col className="text-center">
               <Button as={Link} to="/propiedades" variant="dark" size="lg">
                 Ver todas las propiedades
-                <i className="fas fa-arrow-right ms-2"></i>
+                
               </Button>
             </Col>
           </Row>
@@ -412,7 +447,7 @@ const Home = () => {
           {/* Modificado: justify-content-center para centrar los 2 servicios */}
           <Row className="justify-content-center g-4">
             <Col md={4}>
-              <Card className="text-center border-0 shadow-sm h-100">
+              <Card className="text-center border shadow-sm h-100 bg-white service-card">
                 <Card.Body className="p-4">
                   <i className="fas fa-home fa-3x text-dark mb-3"></i>
                   <Card.Title className="fw-bold">Venta de Propiedades</Card.Title>
@@ -423,7 +458,7 @@ const Home = () => {
               </Card>
             </Col>
             <Col md={4}>
-              <Card className="text-center border-0 shadow-sm h-100">
+              <Card className="text-center border shadow-sm h-100 bg-white service-card">
                 <Card.Body className="p-4">
                   <i className="fas fa-key fa-3x text-dark mb-3"></i>
                   <Card.Title className="fw-bold">Alquileres</Card.Title>
@@ -455,7 +490,7 @@ const Home = () => {
               </p>
               <Button as={Link} to="/nosotros" variant="dark" size="lg">
                 Conocer más sobre nosotros
-                <i className="fas fa-arrow-right ms-2"></i>
+                
               </Button>
             </Col>
           </Row>
@@ -479,7 +514,7 @@ const Home = () => {
               </p>
               <Button as={Link} to="/contacto" variant="dark" size="lg">
                 Ir a contacto
-                <i className="fas fa-arrow-right ms-2"></i>
+                
               </Button>
             </Col>
           </Row>
