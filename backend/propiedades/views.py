@@ -148,12 +148,27 @@ class PropiedadViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # ✅ FIX: Los datos enviados por FormData en JS son strings de texto. 
+        # Transformamos "true"/"false" a booleanos reales de Python
+        es_principal_str = request.data.get('es_principal', 'false')
+        if isinstance(es_principal_str, str):
+            es_principal = es_principal_str.lower() in ('true', '1', 't', 'y', 'yes')
+        else:
+            es_principal = bool(es_principal_str)
+            
+        # ✅ FIX: Transformamos el orden a entero real por si viene como string
+        orden_str = request.data.get('orden', 0)
+        try:
+            orden = int(orden_str)
+        except (ValueError, TypeError):
+            orden = 0
+            
         imagen_obj = ImagenPropiedad.objects.create(
             propiedad=propiedad,
             imagen=imagen,
             titulo=request.data.get('titulo', ''),
-            orden=request.data.get('orden', 0),
-            es_principal=request.data.get('es_principal', False)
+            orden=orden,
+            es_principal=es_principal
         )
         
         serializer = ImagenPropiedadSerializer(imagen_obj, context={'request': request})
