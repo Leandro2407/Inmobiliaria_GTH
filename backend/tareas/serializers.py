@@ -1,4 +1,8 @@
+import datetime
+
 from rest_framework import serializers
+
+from visitas.models import Visita
 from .models import Tarea
 from django.contrib.auth import get_user_model
 
@@ -38,12 +42,55 @@ class TareaSerializer(serializers.ModelSerializer):
             })
         return empleados_data
 
-    def validate_empleados(self, value):
+    def validate_empleado(self, value):
         """
-        Validación personalizada para el campo empleados
+        Validar que el empleado esté disponible en la fecha y hora seleccionadas
         """
         if not value:
-            raise serializers.ValidationError("Debe asignar al menos un empleado a la tarea.")
+            if self.instance and self.instance.estado == 'pendiente':
+                raise serializers.ValidationError("Debe seleccionar un empleado para la visita.")
+            return value
+    
+        # Obtener fecha y hora del contexto
+        fecha = self.initial_data.get('fecha') or (self.instance.fecha if self.instance else None)
+        hora = self.initial_data.get('hora') or (self.instance.hora if self.instance else None)
+    
+        if not fecha or not hora:
+            return value
+    
+        # Convertir fecha a objeto date si es string
+        if isinstance(fecha, str):
+            try:
+                fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
+            except ValueError:
+                raise serializers.ValidationError("Formato de fecha inválido.")
+    
+        # Convertir hora a objeto time si es string
+        if isinstance(hora, str):
+            try:
+                hora = datetime.strptime(hora, '%H:%M').time()
+            except ValueError:
+                raise serializers.ValidationError("Formato de hora inválido.")
+    
+        # 🔧 IMPORTANTE: Excluir la visita actual para que no se bloquee a sí misma
+        exclude_id = self.instance.id if self.instance else None
+    
+        disponible, visita_conflicto, conflictos = Visita.empleado_esta_disponible(
+            value.id, fecha, hora, exclude_visita_id=exclude_id
+        )
+    
+        if not disponible and conflictos:
+            mensajes_conflicto = []
+            for conf in conflictos:
+                mensajes_conflicto.append(
+                    f"• {conf['horario_conflicto']} (diferencia de {conf['diferencia_minutos']} min)"
+                )
+        
+            raise serializers.ValidationError(
+                f"El empleado no está disponible en este horario. "
+                f"Conflictos con visita(s) programada(s) a las: {' | '.join(mensajes_conflicto)}"
+            )
+    
         return value
 
     def validate(self, data):

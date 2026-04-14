@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Row, Col, Alert, Spinner, ProgressBar } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import visitaService from '../../services/visitaService';
+import EmpleadoSelectorDisponible from './EmpleadoSelectorDisponible';
+import api from '../../services/api';
 
 // Componente modal para crear y editar visitas con diferentes modos de operación
 const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
@@ -9,6 +11,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
   const [formData, setFormData] = useState({
     fecha: '',
     hora: '',
+    empleados: [],
     resultado: '',
     descripcion: '',
   });
@@ -16,12 +19,76 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [esEdicion, setEsEdicion] = useState(false);
   
-  // 🆕 Estados para verificación de bloqueo
+  // Estado para saber si la edición está bloqueada por tiempo
+  const [edicionBloqueada, setEdicionBloqueada] = useState(false);
+  const [mensajeBloqueo, setMensajeBloqueo] = useState('');
+  
+  // Estado para empleados disponibles
+  const [empleados, setEmpleados] = useState([]);
+  const [cargandoEmpleados, setCargandoEmpleados] = useState(false);
+  
+  // Estados para verificación de bloqueo
   const [verificandoBloqueo, setVerificandoBloqueo] = useState(false);
   const [minutosRestantes, setMinutosRestantes] = useState(0);
   const [tiempoBloqueoHoras, setTiempoBloqueoHoras] = useState(2);
-  const [finBloqueo, setFinBloqueo] = useState(null); // 🆕 Fecha/hora fin de bloqueo
-  const [visitaDentroBloqueo, setVisitaDentroBloqueo] = useState(false); // 🆕 Si la visita está dentro del bloqueo
+  const [finBloqueo, setFinBloqueo] = useState(null);
+  const [visitaDentroBloqueo, setVisitaDentroBloqueo] = useState(false);
+
+  // Función para verificar si la edición está permitida (más de 2 horas antes)
+  // 🔧 CORREGIDO: Solo aplica para visitas pendientes, no para finalizadas
+  const verificarEdicionPermitida = (fecha, hora) => {
+    // Si la visita ya está finalizada, siempre permitir edición de resultado/descripción
+    if (visita?.estado === 'finalizada') {
+      return true;
+    }
+    
+    if (!fecha || !hora) return true;
+    
+    try {
+      const ahora = new Date();
+      const [year, month, day] = fecha.split('-');
+      const [hours, minutes] = hora.split(':');
+      const fechaHoraVisita = new Date(year, month - 1, day, hours, minutes);
+      
+      const diffHoras = (fechaHoraVisita - ahora) / (1000 * 60 * 60);
+      const puedeEditar = diffHoras > 2;
+      
+      if (!puedeEditar) {
+        const horasRestantes = Math.floor(diffHoras);
+        const minutosRestantesEdicion = Math.floor((diffHoras % 1) * 60);
+        
+        if (diffHoras <= 0) {
+          setMensajeBloqueo(`La visita ya debería haber comenzado (${fecha} ${hora}). No se puede editar.`);
+        } else {
+          setMensajeBloqueo(`No se puede editar la visita porque faltan menos de 2 horas para su inicio. Tiempo restante: ${horasRestantes > 0 ? horasRestantes + 'h ' : ''}${minutosRestantesEdicion}m.`);
+        }
+      } else {
+        setMensajeBloqueo('');
+      }
+      
+      return puedeEditar;
+    } catch (error) {
+      console.error('Error al verificar tiempo de edición:', error);
+      return true;
+    }
+  };
+
+  // Cargar empleados disponibles
+  const cargarEmpleados = async () => {
+    try {
+      setCargandoEmpleados(true);
+      const response = await api.get('/auth/agentes/');
+      const empleadosCargados = response.data.results || response.data;
+      setEmpleados(empleadosCargados);
+      console.log('✅ Empleados cargados para visitas:', empleadosCargados.length);
+    } catch (err) {
+      console.error('❌ Error cargando empleados:', err);
+      toast.error('Error al cargar los empleados');
+      setEmpleados([]);
+    } finally {
+      setCargandoEmpleados(false);
+    }
+  };
 
   // Obtener fecha actual en formato YYYY-MM-DD
   const getFechaActual = () => {
@@ -32,7 +99,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     return `${year}-${month}-${day}`;
   };
 
-  // 🆕 Verificar si el cliente está bloqueado
+  // Verificar si el cliente está bloqueado
   const verificarBloqueoCliente = async (clienteId) => {
     try {
       setVerificandoBloqueo(true);
@@ -47,7 +114,6 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       return data.puede_agendar;
     } catch (error) {
       console.error('❌ Error al verificar bloqueo:', error);
-      // En caso de error, permitir continuar
       setMinutosRestantes(0);
       setFinBloqueo(null);
       return true;
@@ -56,7 +122,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     }
   };
 
-  // 🆕 Verificar si la fecha/hora seleccionada está dentro del período de bloqueo
+  // Verificar si la fecha/hora seleccionada está dentro del período de bloqueo
   const verificarVisitaDentroBloqueo = () => {
     if (!finBloqueo || !formData.fecha || !formData.hora) {
       setVisitaDentroBloqueo(false);
@@ -64,20 +130,12 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     }
 
     try {
-      // Crear objeto Date con la fecha y hora seleccionada
       const [year, month, day] = formData.fecha.split('-');
       const [hours, minutes] = formData.hora.split(':');
       const fechaHoraVisita = new Date(year, month - 1, day, hours, minutes);
 
-      // Comparar con el fin del bloqueo
       const dentroBloqueo = fechaHoraVisita < finBloqueo;
       setVisitaDentroBloqueo(dentroBloqueo);
-      
-      console.log('🔍 Verificación de horario:', {
-        fechaHoraVisita: fechaHoraVisita.toISOString(),
-        finBloqueo: finBloqueo.toISOString(),
-        dentroBloqueo
-      });
       
       return dentroBloqueo;
     } catch (error) {
@@ -87,7 +145,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     }
   };
 
-  // 🆕 Formatear fecha/hora del fin de bloqueo
+  // Formatear fecha/hora del fin de bloqueo
   const formatearFinBloqueo = () => {
     if (!finBloqueo) return '';
     
@@ -100,12 +158,19 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     return `${dia}/${mes}/${año} ${horas}:${minutos}`;
   };
 
-  // 🆕 Calcular porcentaje de progreso
+  // Calcular porcentaje de progreso
   const calcularPorcentajeProgreso = (minutosRestantes) => {
     const totalMinutos = tiempoBloqueoHoras * 60;
     const progreso = ((totalMinutos - minutosRestantes) / totalMinutos) * 100;
     return Math.max(0, Math.min(100, progreso));
   };
+
+  // Cargar empleados al abrir el modal
+  useEffect(() => {
+    if (show) {
+      cargarEmpleados();
+    }
+  }, [show]);
 
   // Efecto para inicializar el formulario según el modo (crear/editar)
   useEffect(() => {
@@ -130,25 +195,67 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       setFormData({
         fecha: fechaLocal,
         hora: visita.hora || '',
+        empleados: visita.empleado ? [visita.empleado] : [],
         resultado: visita.resultado || '',
         descripcion: visita.descripcion || '',
       });
       
+      // 🔧 CORREGIDO: Solo verificar bloqueo de edición para visitas PENDIENTES
+      // Para visitas finalizadas (completar información), siempre permitir edición
+      if (visita.estado === 'pendiente') {
+        const puedeEditar = verificarEdicionPermitida(fechaLocal, visita.hora);
+        setEdicionBloqueada(!puedeEditar);
+      } else {
+        // Visitas finalizadas o canceladas: permitir edición (para completar resultado)
+        setEdicionBloqueada(false);
+        setMensajeBloqueo('');
+      }
+      
     } else if (cliente) {
       // Inicializar para nueva visita
       setEsEdicion(false);
+      setEdicionBloqueada(false);
+      setMensajeBloqueo('');
       setFormData({
         fecha: getFechaActual(),
         hora: '',
+        empleados: [],
         resultado: '',
         descripcion: '',
       });
       
-      // 🆕 Verificar bloqueo para nuevas visitas
+      // Verificar bloqueo para nuevas visitas
       verificarBloqueoCliente(cliente.id);
     }
     setErrors({});
   }, [visita, cliente, show, onHide]);
+
+  // Efecto para verificar edición cuando cambian fecha u hora (solo para visitas pendientes)
+  useEffect(() => {
+    // 🔧 CORREGIDO: Solo verificar si es edición, visita pendiente, y no está en modo finalización
+    if (esEdicion && visita?.estado === 'pendiente' && formData.fecha && formData.hora) {
+      const puedeEditar = verificarEdicionPermitida(formData.fecha, formData.hora);
+      setEdicionBloqueada(!puedeEditar);
+    }
+  }, [formData.fecha, formData.hora, esEdicion, visita?.estado]);
+
+  // Manejar cambio de empleados (adaptador para EmpleadoSelector)
+  const handleEmpleadosChange = (selectedEmpleados) => {
+    // 🔧 CORREGIDO: Solo bloquear si es visita pendiente y edicionBloqueada
+    if (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada) return;
+    
+    setFormData(prev => ({
+      ...prev,
+      empleados: selectedEmpleados
+    }));
+    
+    if (errors.empleados) {
+      setErrors(prev => ({
+        ...prev,
+        empleados: ''
+      }));
+    }
+  };
 
   // Obtener hora mínima permitida (para visitas del día actual)
   const getHoraMinima = () => {
@@ -165,6 +272,13 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
+    // 🔧 CORREGIDO: Solo bloquear cambios en fecha/hora/empleados para visitas pendientes bloqueadas
+    const camposEditablesEnBloqueo = ['resultado', 'descripcion'];
+    
+    if (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada && !camposEditablesEnBloqueo.includes(name)) {
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -178,9 +292,8 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       }));
     }
     
-    // 🆕 Verificar si la fecha/hora está dentro del bloqueo cuando cambian
+    // Verificar si la fecha/hora está dentro del bloqueo cuando cambian
     if ((name === 'fecha' || name === 'hora') && finBloqueo) {
-      // Usar setTimeout para dar tiempo a que se actualice el estado
       setTimeout(() => {
         verificarVisitaDentroBloqueo();
       }, 100);
@@ -192,7 +305,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     const newErrors = {};
     const hoy = getFechaActual();
 
-    // Validación específica para visitas finalizadas (completar información)
+    // 🔧 CORREGIDO: Para visitas finalizadas, solo validar resultado y descripción
     if (esEdicion && visita?.estado === 'finalizada') {
       if (!formData.resultado || formData.resultado === '') {
         newErrors.resultado = 'El resultado es requerido';
@@ -206,7 +319,14 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       return Object.keys(newErrors).length === 0;
     }
 
-    // Validaciones de cambio de estado
+    // 🔧 CORREGIDO: Para visitas pendientes bloqueadas, no permitir envío
+    if (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada) {
+      newErrors.submit = mensajeBloqueo || 'No se puede editar la visita porque faltan menos de 2 horas para su inicio.';
+      setErrors(newErrors);
+      return false;
+    }
+
+    // Validaciones para nuevas visitas o edición de visitas pendientes (no bloqueadas)
     if (!formData.fecha) {
       newErrors.fecha = 'La fecha es requerida';
     } else if (formData.fecha < hoy) {
@@ -225,8 +345,13 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         newErrors.hora = 'La hora debe ser posterior a la hora actual';
       }
     }
+    
+    // Validar que se haya seleccionado un empleado (solo para nuevas visitas o ediciones no bloqueadas)
+    if (!formData.empleados || formData.empleados.length === 0) {
+      newErrors.empleados = 'Debe seleccionar un empleado para la visita';
+    }
 
-    // 🆕 Validación de horario dentro del bloqueo
+    // Validación de horario dentro del bloqueo (solo para nuevas visitas)
     if (!esEdicion && finBloqueo && formData.fecha && formData.hora) {
       const dentroBloqueo = verificarVisitaDentroBloqueo();
       if (dentroBloqueo) {
@@ -241,6 +366,12 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
   // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 🔧 CORREGIDO: Solo bloquear envío para visitas pendientes con bloqueo activo
+    if (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada) {
+      toast.error(mensajeBloqueo || 'No se puede editar la visita porque faltan menos de 2 horas para su inicio.');
+      return;
+    }
     
     console.log('🚀 Iniciando submit...');
     
@@ -268,31 +399,26 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         response = await visitaService.update(visita.id, datosParaEnviar);
         console.log('✅ Respuesta del servidor:', response);
         
-        // ✅ FIX: Llamar a onHide primero para cerrar modal correctamente
         onHide();
-        
-        // Esperar a que Bootstrap termine la transición del modal (300ms min)
         setTimeout(() => {
           onSuccess();
           toast.success('Información de la visita guardada exitosamente');
         }, 350);
       } 
-      // Caso 2: Editar visita pendiente (solo fecha y hora)
+      // Caso 2: Editar visita pendiente (fecha, hora y empleado)
       else if (esEdicion && visita?.estado === 'pendiente') {
         datosParaEnviar = {
           cliente: visita.cliente,
           fecha: formData.fecha,
-          hora: formData.hora
+          hora: formData.hora,
+          empleado: formData.empleados.length > 0 ? formData.empleados[0] : null
         };
         
         console.log('📤 Actualizando visita pendiente:', datosParaEnviar);
         response = await visitaService.update(visita.id, datosParaEnviar);
         console.log('✅ Respuesta del servidor:', response);
         
-        // ✅ FIX: Llamar a onHide primero para cerrar modal correctamente
         onHide();
-        
-        // Esperar a que Bootstrap termine la transición del modal (300ms min)
         setTimeout(() => {
           onSuccess();
           toast.success('Visita actualizada exitosamente');
@@ -303,25 +429,20 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
         datosParaEnviar = {
           cliente: cliente.id,
           fecha: formData.fecha,
-          hora: formData.hora
+          hora: formData.hora,
+          empleado: formData.empleados.length > 0 ? formData.empleados[0] : null
         };
         
         console.log('📤 Creando nueva visita:', datosParaEnviar);
         response = await visitaService.create(datosParaEnviar);
         
         console.log('✅ Respuesta completa del servidor:', response);
-        console.log('✅ Tipo de respuesta:', typeof response);
-        console.log('✅ ¿Es objeto?', typeof response === 'object' && response !== null);
         
-        // Validar respuesta del servidor
         if (response && typeof response === 'object') {
           console.log('✅ Visita creada exitosamente');
           toast.success('Visita agendada exitosamente');
           
-          // ✅ FIX: Llamar a onHide primero para cerrar modal correctamente
           onHide();
-          
-          // Esperar a que Bootstrap termine la transición del modal (300ms min)
           setTimeout(() => {
             onSuccess();
           }, 350);
@@ -332,30 +453,38 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       }
     } catch (error) {
       console.error('❌ Error al guardar visita:', error);
-      console.error('📋 Tipo de error:', typeof error);
-      console.error('📋 Error completo:', JSON.stringify(error, null, 2));
       
       let errorMostrado = false;
       
-      // 🆕 Manejar error específico de bloqueo de tiempo
+      // Manejar error específico de bloqueo de tiempo
       if (error.cliente && typeof error.cliente === 'string' && error.cliente.includes('esperar')) {
         setErrors({ submit: error.cliente });
         toast.error(error.cliente);
         
-        // Actualizar información de bloqueo
         if (error.minutos_restantes) {
           setMinutosRestantes(error.minutos_restantes);
         }
         errorMostrado = true;
       }
       
+      // Manejar error de empleado no disponible
+      if (error.empleado && typeof error.empleado === 'string') {
+        setErrors({ empleados: error.empleado });
+        toast.error(error.empleado);
+        errorMostrado = true;
+      }
+      
       // Manejar errores de validación específicos del backend
-      const erroresDelBackend = ['fecha', 'hora', 'estado', 'resultado', 'descripcion'];
+      const erroresDelBackend = ['fecha', 'hora', 'estado', 'resultado', 'descripcion', 'empleado'];
       
       erroresDelBackend.forEach(campo => {
         if (error[campo]) {
           const mensaje = Array.isArray(error[campo]) ? error[campo][0] : error[campo];
-          setErrors(prev => ({ ...prev, [campo]: mensaje }));
+          if (campo === 'empleado') {
+            setErrors(prev => ({ ...prev, empleados: mensaje }));
+          } else {
+            setErrors(prev => ({ ...prev, [campo]: mensaje }));
+          }
           if (!errorMostrado) {
             toast.error(`Error en ${campo}: ${mensaje}`);
           }
@@ -379,6 +508,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     setFormData({
       fecha: getFechaActual(),
       hora: '',
+      empleados: [],
       resultado: '',
       descripcion: '',
     });
@@ -386,6 +516,8 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
     setMinutosRestantes(0);
     setFinBloqueo(null);
     setVisitaDentroBloqueo(false);
+    setEdicionBloqueada(false);
+    setMensajeBloqueo('');
     onHide();
   };
 
@@ -411,7 +543,21 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
             </Alert>
           )}
 
-          {/* 🆕 Alerta de bloqueo para nuevas visitas */}
+          {/* 🔧 CORREGIDO: Alerta de bloqueo de edición - SOLO para visitas pendientes */}
+          {esEdicion && visita?.estado === 'pendiente' && edicionBloqueada && (
+            <Alert variant="danger">
+              <i className="fas fa-clock me-2"></i>
+              <strong>Edición no permitida</strong>
+              <br />
+              {mensajeBloqueo}
+              <hr />
+              <small>
+                Si necesitas modificar esta visita, puedes cancelarla y crear una nueva.
+              </small>
+            </Alert>
+          )}
+
+          {/* Alerta de bloqueo para nuevas visitas */}
           {!esEdicion && verificandoBloqueo && (
             <Alert variant="info">
               <Spinner animation="border" size="sm" className="me-2" />
@@ -473,46 +619,86 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
             </Alert>
           )}
 
-          {/* Campos para fecha y hora (no disponibles para visitas finalizadas) */}
+          {/* 🔧 CORREGIDO: Campos para fecha y hora - SOLO mostrar si NO es visita finalizada */}
           {(!esEdicion || visita?.estado !== 'finalizada') && (
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Fecha *</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="fecha"
-                    value={formData.fecha}
-                    onChange={handleChange}
-                    isInvalid={!!errors.fecha}
-                    min={getFechaActual()}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.fecha}
-                  </Form.Control.Feedback>
-                  <Form.Text className="text-muted d-block">
-                    Solo se permiten fechas desde hoy en adelante
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Hora *</Form.Label>
-                  <Form.Control
-                    type="time"
-                    name="hora"
-                    value={formData.hora}
-                    onChange={handleChange}
-                    isInvalid={!!errors.hora}
-                    min={formData.fecha === getFechaActual() ? getHoraMinima() : '00:00'}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.hora}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
+            <>
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Fecha *</Form.Label>
+                    <Form.Control
+                      type="date"
+                      name="fecha"
+                      value={formData.fecha}
+                      onChange={handleChange}
+                      isInvalid={!!errors.fecha}
+                      min={getFechaActual()}
+                      disabled={esEdicion && visita?.estado === 'pendiente' && edicionBloqueada}
+                    />
+                    <Form.Control.Feedback type="invalid">
+                      {errors.fecha}
+                    </Form.Control.Feedback>
+                    <Form.Text className="text-muted d-block">
+                      Solo se permiten fechas desde hoy en adelante
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+                
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Hora *</Form.Label>
+                    <Form.Control
+                      type="time"
+                      name="hora"
+                      value={formData.hora}
+                      onChange={handleChange}
+                      isInvalid={!!errors.hora}
+                      min={formData.fecha === getFechaActual() ? getHoraMinima() : '00:00'}
+                      disabled={esEdicion && visita?.estado === 'pendiente' && edicionBloqueada}
+                    />
+                    <Form.Control.Feedback type="invalid">
+                      {errors.hora}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {/* Selector de empleados - SOLO visible para nuevas visitas o edición de pendientes */}
+              <Form.Group className="mb-3">
+                <Form.Label>
+                  <i className="fas fa-user-tie me-2"></i>
+                  Empleado que atenderá la visita *
+                </Form.Label>
+                {cargandoEmpleados ? (
+                  <div className="text-center py-2">
+                    <Spinner animation="border" size="sm" />
+                    <span className="ms-2">Cargando empleados...</span>
+                  </div>
+                ) : (
+                  <div style={{ 
+                    opacity: (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada) ? 0.6 : 1, 
+                    pointerEvents: (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada) ? 'none' : 'auto' 
+                  }}>
+                    <EmpleadoSelectorDisponible
+                      empleados={empleados}
+                      selectedEmpleados={formData.empleados}
+                      onChange={handleEmpleadosChange}
+                      isInvalid={!!errors.empleados}
+                      fechaSeleccionada={formData.fecha}
+                      horaSeleccionada={formData.hora}
+                      visitasExistentes={[]}
+                    />
+                  </div>
+                )}
+                {errors.empleados && (
+                  <div className="text-danger small mt-1">{errors.empleados}</div>
+                )}
+                <Form.Text className="text-muted">
+                  Selecciona el empleado que realizará la visita. 
+                  Los empleados ocupados (con visitas programadas en el mismo horario ±30 minutos) aparecerán bloqueados.
+                </Form.Text>
+              </Form.Group>
+            </>
           )}
 
           {/* Campos específicos para completar información de visitas finalizadas */}
@@ -544,8 +730,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
                   <option value="no_interesado">Cliente No Interesado</option>
                   <option value="agendada_visita">Se agendó nueva visita</option>
                   <option value="vendido">Se concretó venta/alquiler</option>
-                  {/* 🔄 Modificado: Reemplazado "pendiente_evaluacion" por "no_se_presento" */}
-                  <option value="no_se_presento">No se presento el cliente</option>
+                  <option value="no_se_presento">No se presentó el cliente</option>
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">
                   {errors.resultado}
@@ -572,14 +757,26 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
           )}
 
           {/* Información contextual según el modo */}
-          {esEdicion && visita?.estado === 'pendiente' && (
+          {esEdicion && visita?.estado === 'pendiente' && !edicionBloqueada && (
             <Alert variant="info" className="mt-3">
               <i className="fas fa-info-circle me-2"></i>
               <strong>Editando visita pendiente</strong>
               <br />
               <small>
-                Solo puedes modificar la fecha y hora de la visita. Los campos de resultado
-                y descripción estarán disponibles después de finalizar la visita.
+                Puedes modificar la fecha, hora y empleado asignado. 
+                Los campos de resultado y descripción estarán disponibles después de finalizar la visita.
+              </small>
+            </Alert>
+          )}
+
+          {esEdicion && visita?.estado === 'pendiente' && edicionBloqueada && (
+            <Alert variant="warning" className="mt-3">
+              <i className="fas fa-lock me-2"></i>
+              <strong>Edición bloqueada por tiempo</strong>
+              <br />
+              <small>
+                No se puede modificar esta visita porque faltan menos de 2 horas para su inicio.
+                Si necesitas cambios, cancela la visita y crea una nueva.
               </small>
             </Alert>
           )}
@@ -600,12 +797,23 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
           <Button 
             variant={visita?.estado === 'finalizada' ? 'success' : 'dark'}
             type="submit" 
-            disabled={loading || verificandoBloqueo || visitaDentroBloqueo}
+            disabled={
+              loading || 
+              verificandoBloqueo || 
+              visitaDentroBloqueo || 
+              cargandoEmpleados ||
+              (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada)
+            }
           >
             {loading ? (
               <>
                 <Spinner animation="border" size="sm" className="me-2" />
                 Guardando...
+              </>
+            ) : (esEdicion && visita?.estado === 'pendiente' && edicionBloqueada) ? (
+              <>
+                <i className="fas fa-lock me-2"></i>
+                Edición bloqueada
               </>
             ) : visitaDentroBloqueo ? (
               <>

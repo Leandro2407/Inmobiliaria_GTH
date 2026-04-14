@@ -18,8 +18,8 @@ class VisitaViewSet(viewsets.ModelViewSet):
     queryset = Visita.objects.all()
     permission_classes = [IsAuthenticated, IsAgenteOrAdmin]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['cliente', 'estado', 'resultado', 'fecha']
-    search_fields = ['cliente__nombre', 'cliente__apellido', 'cliente__dni', 'descripcion']
+    filterset_fields = ['cliente', 'estado', 'resultado', 'fecha', 'empleado']
+    search_fields = ['cliente__nombre', 'cliente__apellido', 'cliente__dni', 'descripcion', 'empleado__first_name', 'empleado__last_name']
     ordering_fields = ['fecha', 'hora', 'fecha_creacion']
     ordering = ['-fecha', '-hora']
     
@@ -97,11 +97,9 @@ class VisitaViewSet(viewsets.ModelViewSet):
             
             # Si la nueva visita está programada DESPUÉS del fin del bloqueo, permitir
             if fecha_hora_nueva_visita >= fin_bloqueo:
-                # La visita está programada para después del bloqueo - permitir
                 serializer.save(creado_por=self.request.user)
                 return
             
-            # La visita está dentro del período de bloqueo - rechazar
             from rest_framework.exceptions import ValidationError
             minutos_hasta_fin_bloqueo = int((fin_bloqueo - timezone.now()).total_seconds() / 60)
             
@@ -122,11 +120,27 @@ class VisitaViewSet(viewsets.ModelViewSet):
         return response
     
     def update(self, request, *args, **kwargs):
-        """Permitir editar visitas con validación especial y actualización parcial"""
-        partial = kwargs.pop('partial', False)
+        """
+        Actualizar visita con validación de tiempo de edición
+        Permite actualización parcial (solo los campos que se envían)
+        """
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        # Solo validar tiempo de edición para visitas pendientes
+        # Y solo si se están modificando campos que afectan el horario
+        if instance.estado == 'pendiente':
+            # Verificar si se están modificando fecha u hora
+            data = request.data
+            modifica_horario = 'fecha' in data or 'hora' in data
+            
+            if modifica_horario and not instance.puede_ser_editada:
+                return Response(
+                    {'error': 'No se puede modificar la fecha/hora de una visita cuando faltan menos de 2 horas para su inicio.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         
         try:
             serializer.is_valid(raise_exception=True)

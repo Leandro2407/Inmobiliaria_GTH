@@ -11,8 +11,10 @@ class Visita(models.Model):
     # Tiempo mínimo entre visitas (en horas)
     TIEMPO_MINIMO_ENTRE_VISITAS = 2
     
+    # Margen de conflicto para empleados (en minutos)
+    MARGEN_CONFLICTO_MINUTOS = 30
+    
     # Opciones para resultados de visitas
-    # 🔄 Modificado: Reemplazado 'pendiente_evaluacion' por 'no_se_presento'
     RESULTADO_CHOICES = [
         ('interesado', 'Cliente Interesado'),
         ('no_interesado', 'Cliente No Interesado'),
@@ -35,6 +37,17 @@ class Visita(models.Model):
         on_delete=models.CASCADE,
         related_name='visitas',
         verbose_name='Cliente'
+    )
+    
+    # Relación con el empleado (agente que atiende la visita)
+    empleado = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='visitas_asignadas',
+        verbose_name='Empleado asignado',
+        limit_choices_to={'rol__in': ['agente', 'administrador']}
     )
     
     # Fecha y hora de la visita
@@ -90,6 +103,7 @@ class Visita(models.Model):
             models.Index(fields=['estado']),
             models.Index(fields=['fecha', 'hora']),
             models.Index(fields=['fecha_creacion']),
+            models.Index(fields=['empleado', 'fecha', 'hora']),
         ]
     
     def __str__(self):
@@ -232,6 +246,55 @@ class Visita(models.Model):
         
         return clientes_bloqueados
     
+    @classmethod
+    def empleado_esta_disponible(cls, empleado_id, fecha, hora, exclude_visita_id=None):
+        """
+        Verifica si un empleado está disponible en una fecha y hora específica.
+        Un empleado NO está disponible si tiene una visita programada que:
+        - Sea el mismo día
+        - El horario se superponga o esté dentro del margen de ±30 minutos
+        
+        Returns: (disponible: bool, visita_conflicto: Visita, conflictos: list)
+        """
+        from datetime import datetime, timedelta
+        
+        # Crear datetime con la fecha y hora de la nueva visita
+        nueva_fecha_hora = datetime.combine(fecha, hora)
+        
+        # Calcular rango de conflicto (30 minutos antes y después)
+        inicio_conflicto = nueva_fecha_hora - timedelta(minutes=cls.MARGEN_CONFLICTO_MINUTOS)
+        fin_conflicto = nueva_fecha_hora + timedelta(minutes=cls.MARGEN_CONFLICTO_MINUTOS)
+        
+        # Buscar visitas del empleado en el mismo día
+        queryset = cls.objects.filter(
+            empleado_id=empleado_id,
+            fecha=fecha,
+            estado__in=['pendiente', 'en_curso']
+        )
+        
+        # Excluir la visita actual si se está editando
+        if exclude_visita_id:
+            queryset = queryset.exclude(id=exclude_visita_id)
+        
+        conflictos = []
+        for visita in queryset:
+            visita_fecha_hora = datetime.combine(visita.fecha, visita.hora)
+            
+            # Calcular diferencia en minutos
+            diff_minutos = abs((visita_fecha_hora - nueva_fecha_hora).total_seconds() / 60)
+            
+            if diff_minutos <= cls.MARGEN_CONFLICTO_MINUTOS:
+                conflictos.append({
+                    'visita': visita,
+                    'diferencia_minutos': int(diff_minutos),
+                    'horario_conflicto': visita.hora.strftime('%H:%M')
+                })
+        
+        if conflictos:
+            return False, conflictos[0]['visita'], conflictos
+        
+        return True, None, []
+    
     @property
     def fecha_hora_completa(self):
         """Propiedad que combina fecha y hora en un string"""
@@ -286,3 +349,27 @@ class Visita(models.Model):
             self.resultado,
             self.descripcion.strip() if self.descripcion else False
         ])
+    
+    @property
+    def puede_ser_editada(self):
+        """
+        Determina si la visita puede ser editada.
+        Solo se puede editar si:
+        - La visita está pendiente
+        - La hora actual es al menos 2 horas antes del inicio de la visita
+        """
+        if self.estado != 'pendiente':
+            return False
+        
+        ahora = timezone.now()
+        try:
+            fecha_hora_naive = datetime.combine(self.fecha, self.hora)
+            fecha_hora_visita = timezone.make_aware(fecha_hora_naive, timezone.get_current_timezone())
+            
+            # Calcular diferencia en horas
+            diferencia = (fecha_hora_visita - ahora).total_seconds() / 3600
+            
+            # Solo permitir editar si faltan más de 2 horas
+            return diferencia > 2
+        except Exception as e:
+            return False

@@ -48,12 +48,11 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
     if (!resultado) return 'bg-secondary';
     
     const variants = {
-      // 🎯 OPCIONES ACTUALIZADAS - Quitadas "contactado" y "no_contactado"
       interesado: 'success',
       no_interesado: 'danger',
       agendada_visita: 'primary',
       vendido: 'success',
-      pendiente_evaluacion: 'warning',
+      no_se_presento: 'warning',
     };
     return `bg-${variants[resultado] || 'secondary'}`;
   };
@@ -64,15 +63,12 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
       setCambiandoEstado(true);
       await visitaService.cambiarEstado(visitaId, nuevoEstado);
       
-      // Si se finaliza la visita, abrir formulario de edición automáticamente
       if (nuevoEstado === 'finalizada') {
         toast.success('Visita finalizada. Completa la información de resultado.');
         
-        // Recargar datos actualizados
         const visitaData = await visitaService.getById(visitaId);
         setVisita(visitaData);
         
-        // Cerrar este modal y abrir el formulario de edición
         onHide();
         setTimeout(() => {
           onEdit(visitaData);
@@ -80,7 +76,6 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
       } else {
         toast.success('Estado actualizado correctamente');
         
-        // Recargar datos actualizados
         const visitaData = await visitaService.getById(visitaId);
         setVisita(visitaData);
       }
@@ -94,12 +89,10 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
 
   // Manejar edición de la visita con validaciones
   const handleEditarVisita = () => {
-    // Solo permitir editar si está pendiente O si está finalizada SIN datos
     if (visita.estado === 'pendiente') {
       onHide();
       onEdit(visita);
     } else if (visita.estado === 'finalizada' && !visita.resultado) {
-      // Solo permitir editar visitas finalizadas que NO tienen resultado
       onHide();
       onEdit(visita);
     } else if (visita.estado === 'finalizada' && visita.resultado) {
@@ -111,7 +104,6 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
 
   // Determinar si la visita puede ser editada
   const puedeEditar = () => {
-    // Solo permitir edición de visitas pendientes o finalizadas SIN resultado
     return visita && (
       visita.estado === 'pendiente' || 
       (visita.estado === 'finalizada' && !visita.resultado)
@@ -158,18 +150,20 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
         {/* Header con información principal */}
         <Row className="mb-4">
           <Col md={8}>
-            {/* 🎯 NOMBRE DEL CLIENTE EN NEGRO */}
             <h5 className="text-dark" style={{ color: '#000', fontWeight: 'bold' }}>
               {visita.cliente_info?.nombre_completo || visita.cliente_nombre}
             </h5>
-            <div className="d-flex gap-2 align-items-center">
+            <div className="d-flex gap-2 align-items-center flex-wrap">
               <Badge className={getEstadoBadge(visita.estado)}>
                 {visita.estado.replace('_', ' ').toUpperCase()}
               </Badge>
-              {visita.resultado && (
+              {visita.resultado ? (
                 <Badge className={getResultadoBadge(visita.resultado)}>
                   {visita.resultado.replace('_', ' ').toUpperCase()}
                 </Badge>
+              ) : (
+                // ✅ CAMBIO: "No especificado" → "--"
+                <span className="text-muted">--</span>
               )}
             </div>
           </Col>
@@ -192,6 +186,13 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
                 <strong>Hora programada:</strong>
                 <span>{visita.hora}</span>
               </ListGroup.Item>
+              {/* 🆕 Empleado asignado */}
+              <ListGroup.Item className="d-flex justify-content-between">
+                <strong>Empleado asignado:</strong>
+                <span>
+                  {visita.empleado_info?.full_name || visita.empleado_nombre || 'No asignado'}
+                </span>
+              </ListGroup.Item>
               <ListGroup.Item className="d-flex justify-content-between">
                 <strong>Estado:</strong>
                 <Badge className={getEstadoBadge(visita.estado)}>
@@ -210,11 +211,12 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
                     {visita.resultado.replace('_', ' ').toUpperCase()}
                   </Badge>
                 ) : (
-                  <span className="text-muted">No especificado</span>
+                  // ✅ CAMBIO: "No especificado" → "--"
+                  <span className="text-muted">--</span>
                 )}
               </ListGroup.Item>
               
-              {/*Hora de finalización */}
+              {/* Hora de finalización */}
               {visita.hora_finalizacion && (
                 <ListGroup.Item className="d-flex justify-content-between">
                   <strong>Hora de finalización:</strong>
@@ -274,7 +276,7 @@ const VisitaDetalle = ({ show, onHide, visitaId, onEdit }) => {
             <br />
             <small>
               Esta visita cambiará automáticamente a "En Curso" cuando llegue la hora programada.
-              Puedes editar la fecha y hora si es necesario.
+              Puedes editar la fecha y hora si es necesario (solo si faltan más de 2 horas).
             </small>
           </Alert>
         )}
