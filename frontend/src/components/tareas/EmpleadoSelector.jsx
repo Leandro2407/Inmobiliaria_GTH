@@ -25,7 +25,12 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
   }, [busqueda, empleados]);
 
   // Manejar selección/deselección de empleados
-  const handleToggleEmpleado = (empleadoId) => {
+  const handleToggleEmpleado = (empleadoId, estaOcupado) => {
+    // 🚫 BLOQUEAR: No permitir seleccionar empleados ocupados
+    if (estaOcupado) {
+      return;
+    }
+    
     let nuevosSeleccionados;
     if (selectedEmpleados.includes(empleadoId)) {
       nuevosSeleccionados = selectedEmpleados.filter(id => id !== empleadoId);
@@ -56,6 +61,11 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
     }
     return nombreCompleto;
   };
+  
+  // Verificar si un empleado está ocupado
+  const isEmpleadoOcupado = (empleado) => {
+    return empleado.esta_ocupado === true;
+  };
 
   // Limpiar la búsqueda
   const handleLimpiarBusqueda = () => {
@@ -71,24 +81,34 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
             {selectedEmpleados.length === 1 ? 'Empleado seleccionado:' : 'Empleados seleccionados:'}
           </small>
           <div className="d-flex flex-wrap gap-2">
-            {selectedEmpleados.map(empleadoId => (
-              <Badge 
-                key={empleadoId}
-                bg="light"
-                text="dark"
-                className="d-flex align-items-center gap-2 p-2 border"
-              >
-                <i className="fas fa-user text-dark"></i>
-                {getNombreEmpleado(empleadoId)}
-                <button
-                  type="button"
-                  className="btn-close"
-                  style={{ fontSize: '0.6rem' }}
-                  onClick={() => handleRemoveEmpleado(empleadoId)}
-                  aria-label="Remover"
-                ></button>
-              </Badge>
-            ))}
+            {selectedEmpleados.map(empleadoId => {
+              const empleado = empleados.find(e => e.id === empleadoId);
+              const estaOcupado = empleado ? isEmpleadoOcupado(empleado) : false;
+              
+              return (
+                <Badge 
+                  key={empleadoId}
+                  bg={estaOcupado ? "secondary" : "light"}
+                  text={estaOcupado ? "white" : "dark"}
+                  className="d-flex align-items-center gap-2 p-2 border"
+                >
+                  <i className="fas fa-user text-dark"></i>
+                  {getNombreEmpleado(empleadoId)}
+                  {estaOcupado && (
+                    <span className="ms-1 small">
+                      <i className="fas fa-clock me-1"></i>Ocupado
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-close"
+                    style={{ fontSize: '0.6rem' }}
+                    onClick={() => handleRemoveEmpleado(empleadoId)}
+                    aria-label="Remover"
+                  ></button>
+                </Badge>
+              );
+            })}
           </div>
         </div>
       )}
@@ -153,30 +173,47 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
               }
               
               const isSelected = selectedEmpleados.includes(empleado.id);
+              const estaOcupado = isEmpleadoOcupado(empleado);
+              const isDisabled = estaOcupado;
               
               return (
                 <div 
                   key={empleado.id}
-                  className={`p-2 rounded mb-1 d-flex align-items-center ${isSelected ? 'border border-secondary' : 'border border-light'}`}
-                  style={{ cursor: 'pointer', backgroundColor: 'white' }}
-                  onClick={() => handleToggleEmpleado(empleado.id)}
+                  className={`p-2 rounded mb-1 d-flex align-items-center ${isSelected ? 'border border-secondary' : 'border border-light'} ${isDisabled ? 'opacity-50' : ''}`}
+                  style={{ 
+                    cursor: isDisabled ? 'not-allowed' : 'pointer', 
+                    backgroundColor: 'white',
+                    ...(isDisabled && { backgroundColor: '#e9ecef' })
+                  }}
+                  onClick={() => handleToggleEmpleado(empleado.id, estaOcupado)}
                 >
                   <Form.Check
                     type="checkbox"
                     id={`empleado-${empleado.id}`}
                     checked={isSelected}
                     onChange={() => {}}
+                    disabled={isDisabled}
                     className="me-2 custom-checkbox"
                   />
                   <label 
                     htmlFor={`empleado-${empleado.id}`}
-                    className="mb-0 flex-grow-1"
-                    style={{ cursor: 'pointer' }}
+                    className={`mb-0 flex-grow-1 ${isDisabled ? 'text-muted' : ''}`}
+                    style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
                   >
-                    <i className="fas fa-user me-2 text-dark"></i>
-                    <strong className="text-dark">{nombreCompleto}</strong>
+                    <i className={`fas fa-user me-2 ${isDisabled ? 'text-secondary' : 'text-dark'}`}></i>
+                    <strong className={isDisabled ? 'text-muted' : 'text-dark'}>{nombreCompleto}</strong>
+                    {estaOcupado && (
+                      <Badge 
+                        bg="warning" 
+                        text="dark" 
+                        className="ms-2"
+                        title="Este empleado ya tiene tareas pendientes"
+                      >
+                        <i className="fas fa-clock me-1"></i>Ocupado
+                      </Badge>
+                    )}
                   </label>
-                  {isSelected && (
+                  {isSelected && !isDisabled && (
                     <i className="fas fa-check text-dark"></i>
                   )}
                 </div>
@@ -245,6 +282,12 @@ const EmpleadoSelector = ({ empleados, selectedEmpleados, onChange, isInvalid })
           
           .form-check-input.custom-checkbox {
             border-color: #6c757d;
+          }
+          
+          /* Estilo para checkbox deshabilitado */
+          .form-check-input:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
           }
         `}
       </style>

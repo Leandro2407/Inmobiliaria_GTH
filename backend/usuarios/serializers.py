@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from tareas.models import Tarea  # Importar modelo Tarea
 
 Usuario = get_user_model()
 
@@ -31,10 +32,18 @@ class AgenteSerializer(serializers.ModelSerializer):
     Solo expone información pública.
     """
     full_name = serializers.CharField(source='get_full_name', read_only=True)
+    esta_ocupado = serializers.SerializerMethodField()
     
     class Meta:
         model = Usuario
-        fields = ['id', 'full_name', 'email', 'telefono', 'foto_perfil', 'rol', 'puesto']
+        fields = ['id', 'full_name', 'email', 'telefono', 'foto_perfil', 'rol', 'puesto', 'esta_ocupado']
+    
+    def get_esta_ocupado(self, obj):
+        """
+        Retorna True si el empleado tiene al menos una tarea NO finalizada asignada.
+        Un empleado está ocupado si tiene tareas pendientes.
+        """
+        return obj.tareas.filter(finalizada=False).exists()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
