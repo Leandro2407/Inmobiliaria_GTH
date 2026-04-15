@@ -32,7 +32,7 @@ const ContratosPanel = ({ clienteId = null }) => {
     }
   };
 
-  // ✅ CORREGIDO: Cargar cliente específico cuando se proporciona clienteId
+  // Cargar cliente específico cuando se proporciona clienteId
   useEffect(() => {
     const cargarClienteEspecifico = async () => {
       if (clienteId) {
@@ -49,7 +49,7 @@ const ContratosPanel = ({ clienteId = null }) => {
     cargarClienteEspecifico();
   }, [clienteId]);
 
-  // ✅ CORREGIDO: Efecto para cargar el cliente cuando se edita un contrato
+  // Efecto para cargar el cliente cuando se edita un contrato
   useEffect(() => {
     const cargarClienteDelContrato = async () => {
       if (contratoParaEditar && contratoParaEditar.cliente) {
@@ -96,10 +96,10 @@ const ContratosPanel = ({ clienteId = null }) => {
   const handleEditarContrato = (contrato) => {
     console.log('📝 Editando contrato:', contrato);
     setContratoParaEditar(contrato);
-    
-    // ✅ IMPORTANTE: Limpiar clienteSeleccionado para forzar la recarga
+
+    // Limpiar clienteSeleccionado para forzar la recarga
     setClienteSeleccionado(null);
-    
+
     setShowContratoForm(true);
   };
 
@@ -108,7 +108,7 @@ const ContratosPanel = ({ clienteId = null }) => {
     setShowContratoForm(false);
     setShowContratoDetalle(false);
     setContratoParaEditar(null);
-    // ✅ Mantener clienteSeleccionado si estamos en modo seguimiento
+    // Mantener clienteSeleccionado si estamos en modo seguimiento
     if (!clienteId) {
       setClienteSeleccionado(null);
     }
@@ -120,7 +120,7 @@ const ContratosPanel = ({ clienteId = null }) => {
     setShowClienteSelector(false);
     setContratoSeleccionado(null);
     setContratoParaEditar(null);
-    // ✅ Solo limpiar clienteSeleccionado si no estamos en modo seguimiento
+    // Solo limpiar clienteSeleccionado si no estamos en modo seguimiento
     if (!clienteId) {
       setClienteSeleccionado(null);
     }
@@ -130,14 +130,14 @@ const ContratosPanel = ({ clienteId = null }) => {
     if (clienteId && clienteSeleccionado) {
       return `Contratos de ${clienteSeleccionado.nombre_completo}`;
     }
-    return "Gestión de Contratos";
+    return 'Gestión de Contratos';
   };
 
   const getSubtituloPanel = () => {
     if (clienteId && clienteSeleccionado) {
       return `Administra los contratos específicos de este cliente`;
     }
-    return "Administra los contratos de alquiler y venta de propiedades";
+    return 'Administra los contratos de alquiler y venta de propiedades';
   };
 
   return (
@@ -149,13 +149,11 @@ const ContratosPanel = ({ clienteId = null }) => {
               <div className="d-flex justify-content-between align-items-center">
                 <div className="flex-grow-1">
                   <h4 className="mb-1 fw-bold text-dark">{getTituloPanel()}</h4>
-                  <p className="text-muted mb-0">
-                    {getSubtituloPanel()}
-                  </p>
+                  <p className="text-muted mb-0">{getSubtituloPanel()}</p>
                 </div>
                 <div className="d-flex gap-2">
-                  <Button 
-                    variant="dark" 
+                  <Button
+                    variant="dark"
                     onClick={handleNuevoContrato}
                     className="d-flex align-items-center"
                   >

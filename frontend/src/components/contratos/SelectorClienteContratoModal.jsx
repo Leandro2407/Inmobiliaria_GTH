@@ -1,13 +1,34 @@
 import React from 'react';
-import { Modal, Button, Table, Alert, Spinner } from 'react-bootstrap';
+import { Modal, Button, Table, Alert, Spinner, Badge } from 'react-bootstrap';
 
-const SelectorClienteContratoModal = ({ 
-  show, 
-  onHide, 
-  clientes, 
-  onSeleccionarCliente, 
+// Mapeo de categorías del modelo Cliente
+const getCategoriaLabel = (categoria) => {
+  const map = {
+    'alquiler': 'Inquilino',
+    'compra': 'Comprador',
+    'venta': 'Venta',
+    'ambas': 'Ambos (Inquilino/Comprador)',
+  };
+  return map[categoria] || categoria || '—';
+};
+
+const getCategoriaBadgeBg = (categoria) => {
+  const colors = {
+    'alquiler': 'info',
+    'compra': 'primary',
+    'venta': 'success',
+    'ambas': 'warning',
+  };
+  return colors[categoria] || 'secondary';
+};
+
+const SelectorClienteContratoModal = ({
+  show,
+  onHide,
+  clientes,
+  onSeleccionarCliente,
   loading,
-  onActualizarClientes 
+  onActualizarClientes,
 }) => {
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
@@ -20,9 +41,9 @@ const SelectorClienteContratoModal = ({
       <Modal.Body>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h6 className="mb-0">Lista de Clientes Existentes</h6>
-          <Button 
-            variant="outline-primary" 
-            size="sm" 
+          <Button
+            variant="outline-primary"
+            size="sm"
             onClick={onActualizarClientes}
             disabled={loading}
           >
@@ -48,7 +69,7 @@ const SelectorClienteContratoModal = ({
                   <th>Nombre</th>
                   <th>Email</th>
                   <th>Teléfono</th>
-                  <th>Tipo</th>
+                  <th>Categoría</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -61,12 +82,9 @@ const SelectorClienteContratoModal = ({
                     <td>{cliente.email}</td>
                     <td>{cliente.telefono}</td>
                     <td>
-                      <span className={`badge ${
-                        cliente.tipo === 'comprador' ? 'bg-success' : 
-                        cliente.tipo === 'vendedor' ? 'bg-primary' : 'bg-secondary'
-                      }`}>
-                        {cliente.tipo}
-                      </span>
+                      <Badge bg={getCategoriaBadgeBg(cliente.categoria)}>
+                        {getCategoriaLabel(cliente.categoria)}
+                      </Badge>
                     </td>
                     <td>
                       <Button
