@@ -18,10 +18,11 @@ const ContratosPanel = ({ clienteId = null }) => {
   const [contratoParaEditar, setContratoParaEditar] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const cargarClientes = async () => {
+  const cargarClientes = async (searchTerm = '') => {
     try {
       setLoadingClientes(true);
-      const response = await clienteService.getAll();
+      const params = searchTerm ? { search: searchTerm } : {};
+      const response = await clienteService.getAll(params);
       const clientesData = response.results || response;
       setClientes(clientesData);
     } catch (error) {
@@ -32,7 +33,6 @@ const ContratosPanel = ({ clienteId = null }) => {
     }
   };
 
-  // Cargar cliente específico cuando se proporciona clienteId
   useEffect(() => {
     const cargarClienteEspecifico = async () => {
       if (clienteId) {
@@ -49,7 +49,6 @@ const ContratosPanel = ({ clienteId = null }) => {
     cargarClienteEspecifico();
   }, [clienteId]);
 
-  // Efecto para cargar el cliente cuando se edita un contrato
   useEffect(() => {
     const cargarClienteDelContrato = async () => {
       if (contratoParaEditar && contratoParaEditar.cliente) {
@@ -74,15 +73,14 @@ const ContratosPanel = ({ clienteId = null }) => {
     console.log('✅ Cliente seleccionado:', cliente);
     setClienteSeleccionado(cliente);
     setShowClienteSelector(false);
+    // Abrir el formulario de contrato (que a su vez abrirá el selector de propiedad)
     setShowContratoForm(true);
   };
 
   const handleNuevoContrato = () => {
     if (clienteId && clienteSeleccionado) {
-      // Desde seguimiento: ya tenemos cliente seleccionado
       setShowContratoForm(true);
     } else {
-      // Desde panel principal: mostrar selector de clientes
       cargarClientes();
       setShowClienteSelector(true);
     }
@@ -96,10 +94,7 @@ const ContratosPanel = ({ clienteId = null }) => {
   const handleEditarContrato = (contrato) => {
     console.log('📝 Editando contrato:', contrato);
     setContratoParaEditar(contrato);
-
-    // Limpiar clienteSeleccionado para forzar la recarga
     setClienteSeleccionado(null);
-
     setShowContratoForm(true);
   };
 
@@ -108,7 +103,6 @@ const ContratosPanel = ({ clienteId = null }) => {
     setShowContratoForm(false);
     setShowContratoDetalle(false);
     setContratoParaEditar(null);
-    // Mantener clienteSeleccionado si estamos en modo seguimiento
     if (!clienteId) {
       setClienteSeleccionado(null);
     }
@@ -120,7 +114,6 @@ const ContratosPanel = ({ clienteId = null }) => {
     setShowClienteSelector(false);
     setContratoSeleccionado(null);
     setContratoParaEditar(null);
-    // Solo limpiar clienteSeleccionado si no estamos en modo seguimiento
     if (!clienteId) {
       setClienteSeleccionado(null);
     }
@@ -188,7 +181,7 @@ const ContratosPanel = ({ clienteId = null }) => {
         clientes={clientes}
         onSeleccionarCliente={handleSeleccionarCliente}
         loading={loadingClientes}
-        onActualizarClientes={cargarClientes}
+        onActualizarClientes={() => cargarClientes()}
       />
 
       <ContratoForm

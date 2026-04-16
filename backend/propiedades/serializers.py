@@ -3,7 +3,6 @@ from .models import Propiedad, ImagenPropiedad, VideoPropiedad
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 class ImagenPropiedadSerializer(serializers.ModelSerializer):
-    """Serializer para imágenes de propiedades"""
     imagen = serializers.SerializerMethodField()
     
     class Meta:
@@ -12,7 +11,6 @@ class ImagenPropiedadSerializer(serializers.ModelSerializer):
         read_only_fields = ['fecha_subida']
 
     def get_imagen(self, obj):
-        """Retorna la URL absoluta de la imagen"""
         if obj.imagen:
             request = self.context.get('request')
             if request:
@@ -21,8 +19,6 @@ class ImagenPropiedadSerializer(serializers.ModelSerializer):
         return None
 
 class VideoPropiedadSerializer(serializers.ModelSerializer):
-    """Serializer para videos de propiedades"""
-    
     class Meta:
         model = VideoPropiedad
         fields = ['id', 'video', 'url_youtube', 'titulo', 'miniatura', 'fecha_subida']
@@ -30,9 +26,6 @@ class VideoPropiedadSerializer(serializers.ModelSerializer):
 
 
 class PropiedadSerializer(serializers.ModelSerializer):
-    """Serializer completo para Propiedad"""
-    
-    # Pasamos el contexto a los serializers anidados para que generen URLs absolutas
     imagenes = serializers.SerializerMethodField()
     videos = VideoPropiedadSerializer(many=True, read_only=True)
     agente_nombre = serializers.CharField(source='agente_cargo.get_full_name', read_only=True)
@@ -61,15 +54,12 @@ class PropiedadSerializer(serializers.ModelSerializer):
         return serializer.data
 
     def get_caracteristicas_list(self, obj):
-        """Convierte las características de string a lista"""
         if obj.caracteristicas:
             return [c.strip() for c in obj.caracteristicas.split('\n') if c.strip()]
         return []
 
 
 class PropiedadListSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listados"""
-    
     imagen_principal = serializers.SerializerMethodField()
     agente_nombre = serializers.CharField(source='agente_cargo.get_full_name', read_only=True)
     precio_display = serializers.CharField(read_only=True)
@@ -78,6 +68,7 @@ class PropiedadListSerializer(serializers.ModelSerializer):
         model = Propiedad
         fields = [
             'id', 'titulo', 'tipo', 'operacion', 'estado', 'precio_display',
+            'precio_venta', 'precio_alquiler', 'moneda',
             'dormitorios', 'banos', 'superficie_total', 'barrio', 'zona',
             'destacada', 'imagen_principal', 'agente_nombre', 'fecha_publicacion'
         ]
@@ -92,12 +83,9 @@ class PropiedadListSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(imagen.imagen.url)
             return imagen.imagen.url
         return None
-    
 
 
 class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
-    """Serializer para crear y actualizar propiedades"""
-    
     caracteristicas_list = serializers.ListField(
         child=serializers.CharField(),
         write_only=True,
@@ -107,8 +95,7 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Propiedad
         fields = [
-            'id',  # IMPORTANTE: Campo necesario para obtener el ID después de crear
-            'titulo', 'descripcion', 'tipo', 'operacion', 'estado',
+            'id', 'titulo', 'descripcion', 'tipo', 'operacion', 'estado',
             'precio_venta', 'precio_alquiler', 'moneda',
             'superficie_total', 'superficie_cubierta', 'dormitorios', 'banos',
             'cocheras', 'antiguedad', 'direccion', 'barrio', 'ciudad',
@@ -125,33 +112,26 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def validate(self, attrs):
-        """Normalizar strings vacíos a None y validar agente_cargo"""
-        # Campos numéricos/decimales que pueden venir como '' desde el frontend
         for key in ['precio_venta', 'precio_alquiler', 'latitud', 'longitud', 'superficie_total', 'superficie_cubierta']:
             if key in attrs and attrs.get(key) == '':
                 attrs[key] = None
 
-        # Campos integer que pueden venir como ''
         for key in ['dormitorios', 'banos', 'cocheras', 'antiguedad']:
             if key in attrs and attrs.get(key) == '':
                 attrs[key] = None
 
-        # Normalizar agente_cargo vacio a None
         if 'agente_cargo' in attrs and attrs.get('agente_cargo') == '':
             attrs['agente_cargo'] = None
 
-        # Validar que si se asigna agente_cargo, tenga rol permitido
         agente = attrs.get('agente_cargo')
         if agente is not None:
             try:
-                # `agente` puede ser instancia o PK según el flujo de deserialización
                 usuario = agente if hasattr(agente, 'rol') else self.Meta.model._meta.get_field('agente_cargo').related_model.objects.get(pk=agente)
                 if usuario.rol not in ['agente', 'administrador']:
                     raise serializers.ValidationError({'agente_cargo': 'El usuario asignado no es un agente ni administrador.'})
             except Exception:
                 raise serializers.ValidationError({'agente_cargo': 'Agente no válido.'})
 
-        # Validar latitud/longitud: rango y precisión
         for coord in ['latitud', 'longitud']:
             if coord in attrs and attrs.get(coord) is not None:
                 val = attrs[coord]
@@ -160,7 +140,6 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
                 except (InvalidOperation, ValueError):
                     raise serializers.ValidationError({coord: 'Valor de coordenada no válido.'})
 
-                # Rango
                 if coord == 'latitud':
                     if dec < Decimal('-90') or dec > Decimal('90'):
                         raise serializers.ValidationError({coord: 'La latitud debe estar entre -90 y 90.'})
@@ -168,35 +147,26 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
                     if dec < Decimal('-180') or dec > Decimal('180'):
                         raise serializers.ValidationError({coord: 'La longitud debe estar entre -180 y 180.'})
 
-                # Redondear/quantize a 8 decimales para cumplir con max_digits/decimal_places
                 try:
                     dec = dec.quantize(Decimal('0.00000001'), rounding=ROUND_HALF_UP)
                 except InvalidOperation:
                     raise serializers.ValidationError({coord: 'La coordenada tiene demasiada precisión.'})
 
-                # Asignar el valor normalizado
                 attrs[coord] = dec
 
         return attrs
 
     def validate_agente_cargo(self, value):
-        """Validar y normalizar el campo agente_cargo.
-
-        Acepta: None, instancia Usuario, o PK (int o string numérica).
-        Devuelve instancia Usuario o None.
-        """
         if value in ['', None]:
             return None
 
         Usuario = self.Meta.model._meta.get_field('agente_cargo').related_model
 
-        # Si ya es instancia
         if hasattr(value, 'rol'):
             if value.rol not in ['agente', 'administrador']:
                 raise serializers.ValidationError('El usuario asignado no es un agente ni administrador.')
             return value
 
-        # Si viene como PK (string o int)
         try:
             pk = int(value)
         except Exception:
@@ -220,8 +190,6 @@ class PropiedadCreateUpdateSerializer(serializers.ModelSerializer):
 
 
 class PropiedadDestacadaSerializer(serializers.ModelSerializer):
-    """Serializer para propiedades destacadas en el frontend"""
-    
     imagen_principal = serializers.SerializerMethodField()
     imagenes = serializers.SerializerMethodField()
     
@@ -234,7 +202,6 @@ class PropiedadDestacadaSerializer(serializers.ModelSerializer):
         ]
     
     def get_imagenes(self, obj):
-        # Limitamos a 3 imágenes para el frontend y pasamos contexto
         imgs = obj.imagenes.all()[:3]
         serializer = ImagenPropiedadSerializer(imgs, many=True, context=self.context)
         return serializer.data

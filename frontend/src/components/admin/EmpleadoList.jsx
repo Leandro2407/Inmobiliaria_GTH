@@ -161,7 +161,7 @@ const EmpleadoList = () => {
             </tbody>
           </Table>
         )}
-
+        
         {/* Create Modal */}
         <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
           <Modal.Header closeButton>

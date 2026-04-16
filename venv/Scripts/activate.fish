@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV 'C:\Users\K3nUp\Desktop\Proyecto Final GTH\Inmobiliaria_GTH\venv'
+set -gx VIRTUAL_ENV 'C:\Users\pocel\OneDrive\Documents\PP2 2026\Inmobiliaria_GTH\venv'
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"Scripts $PATH

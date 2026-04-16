@@ -73,7 +73,6 @@ const SelectorPropiedadContratoModal = ({
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {/* Filtros */}
         <Row className="mb-3 g-2">
           <Col md={5}>
             <InputGroup>
@@ -127,7 +126,6 @@ const SelectorPropiedadContratoModal = ({
           </Col>
         </Row>
 
-        {/* Resultados */}
         {loading ? (
           <div className="text-center py-4">
             <Spinner animation="border" variant="primary" />

@@ -1,7 +1,6 @@
-import React from 'react';
-import { Modal, Button, Table, Alert, Spinner, Badge } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Modal, Button, Table, Alert, Spinner, Badge, Form, InputGroup } from 'react-bootstrap';
 
-// Mapeo de categorías del modelo Cliente
 const getCategoriaLabel = (categoria) => {
   const map = {
     'alquiler': 'Inquilino',
@@ -30,6 +29,32 @@ const SelectorClienteContratoModal = ({
   loading,
   onActualizarClientes,
 }) => {
+  const [terminoBusqueda, setTerminoBusqueda] = useState('');
+
+  useEffect(() => {
+    if (show) {
+      setTerminoBusqueda('');
+    }
+  }, [show]);
+
+  const clientesFiltrados = useMemo(() => {
+    if (!Array.isArray(clientes)) return [];
+    if (!terminoBusqueda.trim()) return clientes;
+    
+    const busquedaLower = terminoBusqueda.toLowerCase().trim();
+    return clientes.filter(cliente => {
+      const nombreCompleto = (cliente.nombre_completo || '').toLowerCase();
+      const nombre = (cliente.nombre || '').toLowerCase();
+      const apellido = (cliente.apellido || '').toLowerCase();
+      const email = (cliente.email || '').toLowerCase();
+      
+      return nombreCompleto.includes(busquedaLower) ||
+             nombre.includes(busquedaLower) ||
+             apellido.includes(busquedaLower) ||
+             email.includes(busquedaLower);
+    });
+  }, [clientes, terminoBusqueda]);
+
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
@@ -52,6 +77,28 @@ const SelectorClienteContratoModal = ({
           </Button>
         </div>
 
+        <div className="mb-3">
+          <InputGroup>
+            <InputGroup.Text>
+              <i className="fas fa-search"></i>
+            </InputGroup.Text>
+            <Form.Control
+              type="text"
+              placeholder="Buscar por nombre, apellido o email..."
+              value={terminoBusqueda}
+              onChange={(e) => setTerminoBusqueda(e.target.value)}
+            />
+            {terminoBusqueda && (
+              <Button
+                variant="outline-secondary"
+                onClick={() => setTerminoBusqueda('')}
+              >
+                <i className="fas fa-times"></i>
+              </Button>
+            )}
+          </InputGroup>
+        </div>
+
         {loading ? (
           <div className="text-center py-4">
             <Spinner animation="border" variant="primary" />
@@ -61,46 +108,55 @@ const SelectorClienteContratoModal = ({
           <Alert variant="warning">
             No hay clientes registrados. Por favor, crea un cliente primero.
           </Alert>
+        ) : clientesFiltrados.length === 0 ? (
+          <Alert variant="info">
+            No se encontraron clientes con el término "{terminoBusqueda}".
+          </Alert>
         ) : (
-          <div className="table-responsive">
-            <Table striped hover>
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Email</th>
-                  <th>Teléfono</th>
-                  <th>Categoría</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clientes.map((cliente) => (
-                  <tr key={cliente.id}>
-                    <td>
-                      <strong>{cliente.nombre_completo}</strong>
-                    </td>
-                    <td>{cliente.email}</td>
-                    <td>{cliente.telefono}</td>
-                    <td>
-                      <Badge bg={getCategoriaBadgeBg(cliente.categoria)}>
-                        {getCategoriaLabel(cliente.categoria)}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => onSeleccionarCliente(cliente)}
-                      >
-                        <i className="fas fa-check me-1"></i>
-                        Seleccionar
-                      </Button>
-                    </td>
+          <>
+            <div className="text-muted small mb-2">
+              Mostrando {clientesFiltrados.length} de {clientes.length} clientes
+            </div>
+            <div className="table-responsive">
+              <Table striped hover>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Categoría</th>
+                    <th>Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
+                </thead>
+                <tbody>
+                  {clientesFiltrados.map((cliente) => (
+                    <tr key={cliente.id}>
+                      <td>
+                        <strong>{cliente.nombre_completo}</strong>
+                      </td>
+                      <td>{cliente.email}</td>
+                      <td>{cliente.telefono}</td>
+                      <td>
+                        <Badge bg={getCategoriaBadgeBg(cliente.categoria)}>
+                          {getCategoriaLabel(cliente.categoria)}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => onSeleccionarCliente(cliente)}
+                        >
+                          <i className="fas fa-check me-1"></i>
+                          Seleccionar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          </>
         )}
       </Modal.Body>
       <Modal.Footer>
