@@ -4,7 +4,6 @@ import EmpleadoSelector from './EmpleadoSelector';
 
 // Componente para crear o editar tareas
 const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
-  // Estado para los datos del formulario
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -15,42 +14,56 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
     empleados: []
   });
   
-  // Estados para manejo de errores y carga
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Función para obtener la fecha actual en formato YYYY-MM-DD
+  // 🔧 FUNCIÓN CORREGIDA: Obtener fecha actual en YYYY-MM-DD usando UTC
   const getTodayDate = () => {
     const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getUTCFullYear();
+    const month = String(today.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(today.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  // Efecto para inicializar el formulario con datos de tarea existente o valores por defecto
+  // 🔧 Función para extraer fecha YYYY-MM-DD
+  const extraerFechaYYYYMMDD = (fechaInput) => {
+    if (!fechaInput) return '';
+    
+    if (typeof fechaInput === 'string' && fechaInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return fechaInput;
+    }
+    
+    if (typeof fechaInput === 'string' && fechaInput.includes('T')) {
+      return fechaInput.split('T')[0];
+    }
+    
+    if (fechaInput instanceof Date && !isNaN(fechaInput)) {
+      const year = fechaInput.getUTCFullYear();
+      const month = String(fechaInput.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(fechaInput.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    try {
+      const fechaObj = new Date(fechaInput);
+      if (!isNaN(fechaObj)) {
+        const year = fechaObj.getUTCFullYear();
+        const month = String(fechaObj.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(fechaObj.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    } catch (e) {}
+    
+    return '';
+  };
+
   useEffect(() => {
     if (tarea) {
-      // Si hay una tarea existente, cargar sus datos
-      let fechaFormateada = '';
-      if (tarea.fecha) {
-        if (typeof tarea.fecha === 'string' && tarea.fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          fechaFormateada = tarea.fecha;
-        } else {
-          const fecha = new Date(tarea.fecha);
-          const year = fecha.getFullYear();
-          const month = String(fecha.getMonth() + 1).padStart(2, '0');
-          const day = String(fecha.getDate()).padStart(2, '0');
-          fechaFormateada = `${year}-${month}-${day}`;
-        }
-      } else {
-        fechaFormateada = getTodayDate();
-      }
-      
       setFormData({
         nombre: tarea.nombre || '',
         descripcion: tarea.descripcion || '',
-        fecha: fechaFormateada,
+        fecha: extraerFechaYYYYMMDD(tarea.fecha),
         hora_inicio: tarea.hora_inicio || '',
         hora_fin: tarea.hora_fin || '',
         prioridad: tarea.prioridad || 'media',
@@ -58,7 +71,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
       });
       setErrors({});
     } else {
-      // Si es una nueva tarea, establecer fecha por defecto
       const today = getTodayDate();
       setFormData(prev => ({
         ...prev,
@@ -67,15 +79,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
     }
   }, [tarea]);
 
-  // Función para obtener la hora actual con margen
-  const getCurrentTimeWithMargin = () => {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
-
-  // Manejar cambios en los campos del formulario
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -83,7 +86,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
       [name]: value
     }));
 
-    // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -92,7 +94,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
     }
   };
 
-  // Manejar cambios en la selección de empleados
   const handleEmpleadosChange = (selectedEmpleados) => {
     setFormData(prev => ({
       ...prev,
@@ -107,55 +108,34 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
     }
   };
 
-  // Validar todos los campos del formulario
   const validateForm = () => {
     const newErrors = {};
     const today = getTodayDate();
-    const currentTime = getCurrentTimeWithMargin();
 
-    // Validar nombre
     if (!formData.nombre.trim()) {
       newErrors.nombre = 'El nombre de la tarea es requerido';
     } else if (formData.nombre.trim().length < 3) {
       newErrors.nombre = 'El nombre debe tener al menos 3 caracteres';
     }
 
-    // Validar fecha
     if (!formData.fecha) {
       newErrors.fecha = 'La fecha es requerida';
     } else {
-      const selectedDate = new Date(formData.fecha);
-      const todayDate = new Date(today);
-      
-      selectedDate.setHours(0, 0, 0, 0);
-      todayDate.setHours(0, 0, 0, 0);
-
-      // No permitir fechas en el pasado
-      if (selectedDate < todayDate) {
-        newErrors.fecha = 'La fecha no puede ser en el pasado';
-      }
-      
-      // Validar hora para fechas actuales
-      if (formData.fecha === today && formData.hora_inicio) {
-        if (formData.hora_inicio < currentTime) {
-          newErrors.hora_inicio = `Para hoy, la hora debe ser ${currentTime} o posterior`;
-        }
+      if (formData.fecha < today) {
+        newErrors.fecha = `La fecha no puede ser en el pasado. Hoy es ${today}`;
       }
     }
 
-    // Validar hora de inicio
     if (!formData.hora_inicio) {
       newErrors.hora_inicio = 'La hora de inicio es requerida';
     }
 
-    // Validar que hora fin sea posterior a hora inicio
     if (formData.hora_fin && formData.hora_inicio) {
       if (formData.hora_fin <= formData.hora_inicio) {
         newErrors.hora_fin = 'La hora de fin debe ser posterior a la hora de inicio';
       }
     }
 
-    // Validar que se haya asignado al menos un empleado
     if (formData.empleados.length === 0) {
       newErrors.empleados = 'Debe asignar al menos un empleado';
     }
@@ -164,7 +144,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -195,14 +174,12 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
 
   return (
     <Form onSubmit={handleSubmit}>
-      {/* Mostrar error general si existe */}
       {errors.submit && (
         <Alert variant="danger" className="mb-3">
           <strong>Error:</strong> {errors.submit}
         </Alert>
       )}
 
-      {/* Campo: Nombre de la tarea */}
       <Form.Group className="mb-3">
         <Form.Label>Nombre de la tarea *</Form.Label>
         <Form.Control
@@ -219,7 +196,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         </Form.Control.Feedback>
       </Form.Group>
 
-      {/* Campo: Descripción */}
       <Form.Group className="mb-3">
         <Form.Label>Descripción</Form.Label>
         <Form.Control
@@ -233,7 +209,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         />
       </Form.Group>
 
-      {/* Campo: Fecha */}
       <Form.Group className="mb-3">
         <Form.Label>Fecha *</Form.Label>
         <Form.Control
@@ -250,7 +225,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         </Form.Control.Feedback>
       </Form.Group>
 
-      {/* Fila con Hora de inicio y Hora de fin */}
       <div className="row mb-3">
         <div className="col-md-6">
           <Form.Group>
@@ -287,7 +261,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         </div>
       </div>
 
-      {/* Campo: Prioridad con emojis */}
       <Form.Group className="mb-3">
         <Form.Label>Prioridad</Form.Label>
         <Form.Select
@@ -302,7 +275,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         </Form.Select>
       </Form.Group>
 
-      {/* Selector de empleados */}
       <div className="mb-4">
         <EmpleadoSelector
           empleados={empleados}
@@ -312,7 +284,6 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         />
       </div>
 
-      {/* Botones de acción */}
       <div className="d-flex gap-2 justify-content-end">
         <Button 
           variant="outline-secondary" 

@@ -61,14 +61,14 @@ class TareaSerializer(serializers.ModelSerializer):
         # Convertir fecha a objeto date si es string
         if isinstance(fecha, str):
             try:
-                fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
+                fecha = datetime.datetime.strptime(fecha, '%Y-%m-%d').date()
             except ValueError:
                 raise serializers.ValidationError("Formato de fecha inválido.")
     
         # Convertir hora a objeto time si es string
         if isinstance(hora, str):
             try:
-                hora = datetime.strptime(hora, '%H:%M').time()
+                hora = datetime.datetime.strptime(hora, '%H:%M').time()
             except ValueError:
                 raise serializers.ValidationError("Formato de hora inválido.")
     
@@ -114,6 +114,26 @@ class TareaSerializer(serializers.ModelSerializer):
         
         return data
 
+    # 🔧 MÉTODO CLAVE: Forzar que la fecha se serialice como string simple
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance.fecha:
+            representation['fecha'] = instance.fecha.strftime('%Y-%m-%d')
+        return representation
+
+    def to_internal_value(self, data):
+        data_copy = data.copy() if hasattr(data, 'copy') else dict(data)
+    
+        fecha_str = data_copy.get('fecha')
+        if fecha_str and isinstance(fecha_str, str):
+            try:
+                year, month, day = map(int, fecha_str.split('-'))
+                data_copy['fecha'] = datetime.date(year, month, day)
+            except (ValueError, AttributeError):
+                pass
+    
+        return super().to_internal_value(data_copy)
+
     class Meta:
         model = Tarea
         fields = [
@@ -128,7 +148,6 @@ class TareaSerializer(serializers.ModelSerializer):
             'empleados_detalle',
             'creado_en',
             'actualizado_en',
-            # Campos de control de finalización
             'finalizada',
             'fecha_finalizacion',
         ]
@@ -136,8 +155,8 @@ class TareaSerializer(serializers.ModelSerializer):
             'id', 
             'creado_en', 
             'actualizado_en', 
-            'fecha_finalizacion',  # Se establece automáticamente al finalizar
-            'empleados_detalle'    # Campo computado de solo lectura
+            'fecha_finalizacion',
+            'empleados_detalle'
         ]
         
     def create(self, validated_data):

@@ -52,7 +52,14 @@ const tareaService = {
    */
   async updateTarea(id, tareaData) {
     try {
+
+      console.log('📅 Recibido en tareaService.updateTarea:', tareaData);
+      console.log('📅 Fecha en tareaService:', tareaData.fecha);
+
       const response = await api.put(`${BASE_PATH}${id}/`, tareaData);
+      
+      console.log('📅 Respuesta del backend:', response.data);
+
       return response;
     } catch (error) {
       console.error('Error al actualizar tarea:', error);

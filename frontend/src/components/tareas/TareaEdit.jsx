@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import EmpleadoSelector from './EmpleadoSelector';
 
-// Componente modal para editar tareas existentes
 const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
-  // Estado para los datos del formulario
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -15,33 +13,73 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
     empleados: []
   });
   
-  // Estados para manejo de errores y carga
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [fechaOriginalBackend, setFechaOriginalBackend] = useState('');
 
-  // Función para obtener la fecha actual en formato YYYY-MM-DD
   const getTodayDate = () => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
-  // Función para obtener la hora actual en formato HH:MM
-  const getCurrentTime = () => {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+  // 🔧 CORRECCIÓN: Ajustar la fecha según la diferencia
+  const ajustarFechaParaMostrar = (fechaBackend) => {
+    if (!fechaBackend) return '';
+    
+    // Extraer la fecha como string YYYY-MM-DD
+    let fechaStr = '';
+    if (typeof fechaBackend === 'string') {
+      const match = fechaBackend.match(/(\d{4}-\d{2}-\d{2})/);
+      if (match) fechaStr = match[1];
+    } else {
+      const d = new Date(fechaBackend);
+      fechaStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    
+    if (!fechaStr) return '';
+    
+    // Obtener fecha actual local
+    const hoy = getTodayDate();
+    
+    console.log('📅 Fecha backend:', fechaStr);
+    console.log('📅 Fecha actual:', hoy);
+    
+    // Si la fecha del backend es mayor que hoy (ej: 2026-04-17 vs hoy 2026-04-16)
+    if (fechaStr > hoy) {
+      // Restar 1 día
+      const [year, month, day] = fechaStr.split('-').map(Number);
+      const fechaObj = new Date(year, month - 1, day);
+      fechaObj.setDate(fechaObj.getDate() - 1);
+      const resultado = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth()+1).padStart(2,'0')}-${String(fechaObj.getDate()).padStart(2,'0')}`;
+      console.log('📅 Se resta 1 día:', resultado);
+      return resultado;
+    }
+    
+    // Si la fecha del backend es igual o menor a hoy, mostrarla tal cual
+    console.log('📅 Se muestra fecha original:', fechaStr);
+    return fechaStr;
   };
 
-  // Efecto para cargar datos de la tarea cuando se abre el modal
   useEffect(() => {
     if (tarea && show) {
-      const fechaTarea = tarea.fecha ? new Date(tarea.fecha).toISOString().split('T')[0] : '';
+      // Guardar fecha original
+      let fechaOriginal = '';
+      if (tarea.fecha) {
+        const match = String(tarea.fecha).match(/(\d{4}-\d{2}-\d{2})/);
+        if (match) fechaOriginal = match[1];
+      }
+      setFechaOriginalBackend(fechaOriginal);
+      
+      // Ajustar fecha para mostrar
+      const fechaParaMostrar = ajustarFechaParaMostrar(tarea.fecha);
       
       setFormData({
         nombre: tarea.nombre || '',
         descripcion: tarea.descripcion || '',
-        fecha: fechaTarea,
+        fecha: fechaParaMostrar,
         hora_inicio: tarea.hora_inicio || '',
         hora_fin: tarea.hora_fin || '',
         prioridad: tarea.prioridad || 'media',
@@ -51,82 +89,39 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
     }
   }, [tarea, show]);
 
-  // Manejar cambios en los campos del formulario
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Limpiar error del campo cuando el usuario empiece a escribir
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  // Manejar cambios en la selección de empleados
   const handleEmpleadosChange = (selectedEmpleados) => {
-    setFormData(prev => ({
-      ...prev,
-      empleados: selectedEmpleados
-    }));
-    
-    if (errors.empleados) {
-      setErrors(prev => ({
-        ...prev,
-        empleados: ''
-      }));
-    }
+    setFormData(prev => ({ ...prev, empleados: selectedEmpleados }));
+    if (errors.empleados) setErrors(prev => ({ ...prev, empleados: '' }));
   };
 
-  // Validar todos los campos del formulario
   const validateForm = () => {
     const newErrors = {};
     const today = getTodayDate();
-    const currentTime = getCurrentTime();
 
-    // Validar nombre
-    if (!formData.nombre.trim()) {
-      newErrors.nombre = 'El nombre es requerido';
-    }
-
-    // Validar fecha
-    if (!formData.fecha) {
+    if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es requerido';
+    
+    if (!fechaOriginalBackend) {
       newErrors.fecha = 'La fecha es requerida';
     } else {
-      const selectedDate = new Date(formData.fecha);
-      const todayDate = new Date(today);
-      
-      // No permitir fechas en el pasado
-      if (selectedDate < todayDate) {
-        newErrors.fecha = 'La fecha no puede ser en el pasado';
-      }
-      
-      // Validar hora para fechas actuales
-      if (formData.fecha === today && formData.hora_inicio) {
-        if (formData.hora_inicio < currentTime) {
-          newErrors.hora_inicio = `Para hoy, la hora debe ser ${currentTime} o posterior`;
-        }
+      if (fechaOriginalBackend < today) {
+        newErrors.fecha = `No se puede editar una tarea con fecha anterior a hoy (${today})`;
       }
     }
-
-    // Validar hora de inicio
-    if (!formData.hora_inicio) {
-      newErrors.hora_inicio = 'La hora de inicio es requerida';
-    }
-
-    // Validar que hora fin sea posterior a hora inicio
+    
+    if (!formData.hora_inicio) newErrors.hora_inicio = 'La hora de inicio es requerida';
+    
     if (formData.hora_fin && formData.hora_inicio) {
       if (formData.hora_fin <= formData.hora_inicio) {
         newErrors.hora_fin = 'La hora de fin debe ser posterior a la hora de inicio';
       }
     }
 
-    // Validar que se haya asignado al menos un empleado
     if (formData.empleados.length === 0) {
       newErrors.empleados = 'Debe asignar al menos un empleado';
     }
@@ -135,27 +130,33 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
-      await onUpdate(formData);
+      const dataToSend = {
+        nombre: formData.nombre,
+        descripcion: formData.descripcion,
+        fecha: fechaOriginalBackend,
+        hora_inicio: formData.hora_inicio,
+        hora_fin: formData.hora_fin || null,
+        prioridad: formData.prioridad,
+        empleados: formData.empleados
+      };
+      
+      await onUpdate(dataToSend);
       onHide();
     } catch (error) {
-      console.error('Error al actualizar tarea:', error);
+      console.error('Error:', error);
       setErrors({ submit: 'Error al actualizar la tarea' });
     } finally {
       setLoading(false);
     }
   };
 
-  // Manejar cierre del modal
   const handleClose = () => {
     setErrors({});
     onHide();
@@ -164,22 +165,13 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
   return (
     <Modal show={show} onHide={handleClose} size="lg">
       <Modal.Header closeButton className="bg-dark text-white">
-        <Modal.Title>
-          <i className="fas fa-edit me-2"></i>
-          Editar Tarea
-        </Modal.Title>
+        <Modal.Title><i className="fas fa-edit me-2"></i>Editar Tarea</Modal.Title>
       </Modal.Header>
       
       <Form onSubmit={handleSubmit}>
         <Modal.Body>
-          {/* Mostrar error general si existe */}
-          {errors.submit && (
-            <Alert variant="danger">
-              {errors.submit}
-            </Alert>
-          )}
+          {errors.submit && <Alert variant="danger">{errors.submit}</Alert>}
 
-          {/* Campo: Nombre de la tarea */}
           <Form.Group className="mb-3">
             <Form.Label>Nombre de la tarea *</Form.Label>
             <Form.Control
@@ -188,14 +180,10 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
               value={formData.nombre}
               onChange={handleChange}
               isInvalid={!!errors.nombre}
-              placeholder="Ingrese el nombre de la tarea"
             />
-            <Form.Control.Feedback type="invalid">
-              {errors.nombre}
-            </Form.Control.Feedback>
+            <Form.Control.Feedback type="invalid">{errors.nombre}</Form.Control.Feedback>
           </Form.Group>
 
-          {/* Campo: Descripción */}
           <Form.Group className="mb-3">
             <Form.Label>Descripción</Form.Label>
             <Form.Control
@@ -204,11 +192,9 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
               name="descripcion"
               value={formData.descripcion}
               onChange={handleChange}
-              placeholder="Descripción detallada de la tarea"
             />
           </Form.Group>
 
-          {/* Fila con Fecha y Hora de inicio */}
           <div className="row">
             <div className="col-md-6">
               <Form.Group className="mb-3">
@@ -221,12 +207,7 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
                   isInvalid={!!errors.fecha}
                   min={getTodayDate()}
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.fecha}
-                </Form.Control.Feedback>
-                <Form.Text className="text-muted">
-                  No se permiten fechas del pasado
-                </Form.Text>
+                <Form.Control.Feedback type="invalid">{errors.fecha}</Form.Control.Feedback>
               </Form.Group>
             </div>
             
@@ -239,21 +220,12 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
                   value={formData.hora_inicio}
                   onChange={handleChange}
                   isInvalid={!!errors.hora_inicio}
-                  min={formData.fecha === getTodayDate() ? getCurrentTime() : undefined}
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.hora_inicio}
-                </Form.Control.Feedback>
-                {formData.fecha === getTodayDate() && (
-                  <Form.Text className="text-muted">
-                    Para hoy, la hora mínima es {getCurrentTime()}
-                  </Form.Text>
-                )}
+                <Form.Control.Feedback type="invalid">{errors.hora_inicio}</Form.Control.Feedback>
               </Form.Group>
             </div>
           </div>
 
-          {/* Fila con Hora de fin y Prioridad */}
           <div className="row">
             <div className="col-md-6">
               <Form.Group className="mb-3">
@@ -264,27 +236,15 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
                   value={formData.hora_fin}
                   onChange={handleChange}
                   isInvalid={!!errors.hora_fin}
-                  min={formData.hora_inicio || undefined}
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.hora_fin}
-                </Form.Control.Feedback>
-                {formData.hora_inicio && (
-                  <Form.Text className="text-muted">
-                    La hora de fin debe ser posterior a {formData.hora_inicio}
-                  </Form.Text>
-                )}
+                <Form.Control.Feedback type="invalid">{errors.hora_fin}</Form.Control.Feedback>
               </Form.Group>
             </div>
             
             <div className="col-md-6">
               <Form.Group className="mb-3">
                 <Form.Label>Prioridad</Form.Label>
-                <Form.Select
-                  name="prioridad"
-                  value={formData.prioridad}
-                  onChange={handleChange}
-                >
+                <Form.Select name="prioridad" value={formData.prioridad} onChange={handleChange}>
                   <option value="baja">Baja</option>
                   <option value="media">Media</option>
                   <option value="alta">Alta</option>
@@ -293,7 +253,6 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
             </div>
           </div>
 
-          {/* Selector de empleados */}
           <div className="mb-3">
             <EmpleadoSelector
               empleados={empleados}
@@ -308,22 +267,8 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
           <Button variant="outline-secondary" onClick={handleClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button 
-            variant="dark"
-            type="submit" 
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Actualizando...
-              </>
-            ) : (
-              <>
-                <i className="fas fa-save me-2"></i>
-                Actualizar Tarea
-              </>
-            )}
+          <Button variant="dark" type="submit" disabled={loading}>
+            {loading ? 'Actualizando...' : 'Actualizar Tarea'}
           </Button>
         </Modal.Footer>
       </Form>
