@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Row, Col, Card, Nav, Tab } from 'react-bootstrap';
+import { Container, Row, Col, Card, Nav, Tab, Button, Badge, Spinner, Alert, Modal, Form } from 'react-bootstrap';
 import { Outlet, useMatch } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import clienteService from '../../services/clienteService';
 import propiedadService from '../../services/propiedadService';
+import solicitudVisitaService from '../../services/solicitudVisitaService';
 import ClientesPanel from '../../components/admin/ClientesPanel';
 import PropiedadesPanel from '../../components/admin/PropiedadesPanel';
 import EmpleadoList from '../../components/admin/EmpleadoList';
@@ -57,6 +58,15 @@ const Dashboard = () => {
   const [visitaSeleccionada, setVisitaSeleccionada] = useState(null);
   const [visitaParaEditar, setVisitaParaEditar] = useState(null);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+
+  // Estados para solicitudes de visita
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [loadingSolicitudes, setLoadingSolicitudes] = useState(false);
+  const [showAprobarModal, setShowAprobarModal] = useState(false);
+  const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
+  const [fechaVisita, setFechaVisita] = useState('');
+  const [horaVisita, setHoraVisita] = useState('');
+  const [motivoRechazo, setMotivoRechazo] = useState('');
 
   // Función para cargar la lista de clientes desde el servicio
   const cargarClientes = useCallback(async () => {
@@ -115,6 +125,20 @@ const Dashboard = () => {
     }
   }, []);
 
+  // Función para cargar solicitudes de visita
+  const cargarSolicitudes = useCallback(async () => {
+    try {
+      setLoadingSolicitudes(true);
+      const data = await solicitudVisitaService.getPendientes();
+      setSolicitudes(data);
+    } catch (error) {
+      console.error('Error al cargar solicitudes:', error);
+      toast.error('Error al cargar las solicitudes de visita');
+    } finally {
+      setLoadingSolicitudes(false);
+    }
+  }, []);
+
   // Función principal para cargar todas las estadísticas
   const cargarEstadisticas = useCallback(async () => {
     try {
@@ -154,6 +178,13 @@ const Dashboard = () => {
       cargarClientes();
     }
   }, [activeTab, cargarClientes]);
+
+  // Efecto para cargar solicitudes cuando se activa la pestaña
+  useEffect(() => {
+    if (activeTab === 'solicitudes') {
+      cargarSolicitudes();
+    }
+  }, [activeTab, cargarSolicitudes]);
 
   // ===== FUNCIONES PARA MANEJAR VISITAS =====
 
@@ -202,6 +233,67 @@ const Dashboard = () => {
     setVisitaSeleccionada(null);
     setVisitaParaEditar(null);
     setClienteSeleccionado(null);
+    setShowAprobarModal(false);
+    setSolicitudSeleccionada(null);
+    setFechaVisita('');
+    setHoraVisita('');
+    setMotivoRechazo('');
+  };
+
+  // Función para aprobar una solicitud
+  const handleAprobarSolicitud = async () => {
+    if (!fechaVisita || !horaVisita) {
+      toast.error('Debes seleccionar fecha y hora para la visita');
+      return;
+    }
+
+    try {
+      await solicitudVisitaService.aprobar(solicitudSeleccionada.id, fechaVisita, horaVisita);
+      toast.success('Solicitud aprobada y visita creada exitosamente');
+      cargarSolicitudes();
+      cargarEstadisticas();
+      setRefreshVisitas((prev) => prev + 1);
+      handleCloseModals();
+    } catch (error) {
+      console.error('Error al aprobar solicitud:', error);
+      toast.error('Error al aprobar la solicitud');
+    }
+  };
+
+  // Función para rechazar una solicitud
+  const handleRechazarSolicitud = async (solicitudId) => {
+    if (!motivoRechazo.trim()) {
+      toast.error('Debes proporcionar un motivo de rechazo');
+      return;
+    }
+
+    try {
+      await solicitudVisitaService.rechazar(solicitudId, motivoRechazo);
+      toast.success('Solicitud rechazada exitosamente');
+      cargarSolicitudes();
+      handleCloseModals();
+    } catch (error) {
+      console.error('Error al rechazar solicitud:', error);
+      toast.error('Error al rechazar la solicitud');
+    }
+  };
+
+  // Función para mostrar modal de aprobación
+  const mostrarModalAprobar = (solicitud) => {
+    setSolicitudSeleccionada(solicitud);
+    setShowAprobarModal(true);
+  };
+
+  // Función para mostrar modal de rechazo
+  const mostrarModalRechazar = (solicitud) => {
+    setSolicitudSeleccionada(solicitud);
+    setMotivoRechazo('');
+    // Usar window.confirm por simplicidad
+    const motivo = window.prompt('Motivo del rechazo (opcional):');
+    if (motivo !== null) { // No canceló
+      setMotivoRechazo(motivo);
+      handleRechazarSolicitud(solicitud.id);
+    }
   };
 
   // 🆕 Función para manejar la creación exitosa de un cliente desde ClientesPanel
@@ -270,6 +362,17 @@ const Dashboard = () => {
                       <Nav.Link eventKey="visitas">
                         <i className="fas fa-calendar-check me-2"></i>
                         Visitas
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="solicitudes">
+                        <i className="fas fa-calendar-plus me-2"></i>
+                        Solicitudes
+                        {solicitudes.length > 0 && (
+                          <Badge bg="danger" className="ms-2" style={{ fontSize: '0.7rem' }}>
+                            {solicitudes.length}
+                          </Badge>
+                        )}
                       </Nav.Link>
                     </Nav.Item>
                     <Nav.Item>
@@ -389,6 +492,121 @@ const Dashboard = () => {
                   </Card>
                 </Tab.Pane>
 
+                {/* Pestaña: Solicitudes de Visita */}
+                <Tab.Pane eventKey="solicitudes">
+                  <Card className="shadow-sm border-0">
+                    <Card.Header className="bg-light">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">
+                          <i className="fas fa-calendar-plus me-2"></i>
+                          Solicitudes de Visita Pendientes
+                        </h5>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={cargarSolicitudes}
+                          disabled={loadingSolicitudes}
+                        >
+                          {loadingSolicitudes ? (
+                            <Spinner animation="border" size="sm" />
+                          ) : (
+                            <i className="fas fa-sync-alt me-2"></i>
+                          )}
+                          Actualizar
+                        </Button>
+                      </div>
+                    </Card.Header>
+                    <Card.Body>
+                      {loadingSolicitudes ? (
+                        <div className="text-center py-5">
+                          <Spinner animation="border" variant="primary" />
+                          <p className="mt-2">Cargando solicitudes...</p>
+                        </div>
+                      ) : solicitudes.length === 0 ? (
+                        <Alert variant="info" className="text-center">
+                          <i className="fas fa-calendar-check fa-2x mb-3"></i>
+                          <h5>No hay solicitudes pendientes</h5>
+                          <p className="mb-0">
+                            Todas las solicitudes han sido procesadas o no hay solicitudes nuevas.
+                          </p>
+                        </Alert>
+                      ) : (
+                        <Row>
+                          {solicitudes.map((solicitud) => (
+                            <Col md={6} lg={4} key={solicitud.id} className="mb-4">
+                              <Card className="h-100 shadow-sm border-warning">
+                                <Card.Header className="bg-warning text-dark">
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <small className="fw-bold">
+                                      <i className="fas fa-clock me-1"></i>
+                                      {new Date(solicitud.fecha_creacion).toLocaleDateString()}
+                                    </small>
+                                    <Badge bg="warning" text="dark">
+                                      Pendiente
+                                    </Badge>
+                                  </div>
+                                </Card.Header>
+
+                                <Card.Body>
+                                  <h6 className="fw-bold mb-2">
+                                    <i className="fas fa-home me-2 text-primary"></i>
+                                    {solicitud.propiedad_titulo}
+                                  </h6>
+
+                                  <div className="mb-2">
+                                    <small className="text-muted d-block">
+                                      <i className="fas fa-user me-1"></i>
+                                      Cliente: {solicitud.cliente_nombre}
+                                    </small>
+                                    <small className="text-muted d-block">
+                                      <i className="fas fa-id-card me-1"></i>
+                                      DNI: {solicitud.cliente_dni}
+                                    </small>
+                                  </div>
+
+                                  {solicitud.mensaje && (
+                                    <div className="mb-3">
+                                      <small className="fw-bold text-muted d-block mb-1">
+                                        Mensaje del cliente:
+                                      </small>
+                                      <p className="small mb-0" style={{ fontStyle: 'italic' }}>
+                                        "{solicitud.mensaje.length > 100
+                                          ? `${solicitud.mensaje.substring(0, 100)}...`
+                                          : solicitud.mensaje}"
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  <div className="d-flex gap-2 mt-3">
+                                    <Button
+                                      variant="success"
+                                      size="sm"
+                                      onClick={() => mostrarModalAprobar(solicitud)}
+                                      className="flex-fill"
+                                    >
+                                      <i className="fas fa-check me-1"></i>
+                                      Aprobar
+                                    </Button>
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
+                                      onClick={() => mostrarModalRechazar(solicitud)}
+                                      className="flex-fill"
+                                    >
+                                      <i className="fas fa-times me-1"></i>
+                                      Rechazar
+                                    </Button>
+                                  </div>
+                                </Card.Body>
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                      )}
+                    </Card.Body>
+                  </Card>
+                </Tab.Pane>
+
                 {/* Pestaña: Seguimiento de Clientes */}
                 <Tab.Pane eventKey="seguimientos">
                   {/* Si estamos en detalle de un cliente, renderizamos el Outlet (detalle),
@@ -448,6 +666,82 @@ const Dashboard = () => {
         cliente={clienteSeleccionado}
         onSuccess={handleSuccessVisita}
       />
+
+      {/* Modal para aprobar solicitud de visita */}
+      <Modal
+        show={showAprobarModal}
+        onHide={handleCloseModals}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="fas fa-calendar-check me-2"></i>
+            Aprobar Solicitud de Visita
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {solicitudSeleccionada && (
+            <>
+              <div className="mb-3">
+                <h6 className="fw-bold">Detalles de la solicitud:</h6>
+                <p className="mb-1"><strong>Cliente:</strong> {solicitudSeleccionada.cliente_nombre}</p>
+                <p className="mb-1"><strong>Propiedad:</strong> {solicitudSeleccionada.propiedad_titulo}</p>
+                {solicitudSeleccionada.mensaje && (
+                  <p className="mb-0"><strong>Mensaje:</strong> {solicitudSeleccionada.mensaje}</p>
+                )}
+              </div>
+
+              <hr />
+
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-bold">
+                  <i className="fas fa-calendar me-2"></i>
+                  Fecha de la visita *
+                </Form.Label>
+                <Form.Control
+                  type="date"
+                  value={fechaVisita}
+                  onChange={(e) => setFechaVisita(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-bold">
+                  <i className="fas fa-clock me-2"></i>
+                  Hora de la visita *
+                </Form.Label>
+                <Form.Control
+                  type="time"
+                  value={horaVisita}
+                  onChange={(e) => setHoraVisita(e.target.value)}
+                  required
+                />
+              </Form.Group>
+
+              <Alert variant="info">
+                <i className="fas fa-info-circle me-2"></i>
+                Al aprobar esta solicitud, se creará automáticamente una visita programada
+                que aparecerá en la sección de "Visitas".
+              </Alert>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseModals}>
+            Cancelar
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleAprobarSolicitud}
+            disabled={!fechaVisita || !horaVisita}
+          >
+            <i className="fas fa-check me-2"></i>
+            Aprobar y Crear Visita
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

@@ -5,11 +5,16 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models import Q
 from datetime import datetime
-from .models import Visita
-from .serializers import VisitaSerializer, VisitaCreateSerializer, VisitaListSerializer
+from .models import Visita, SolicitudVisita
+from .serializers import (
+    VisitaSerializer, VisitaCreateSerializer, VisitaListSerializer,
+    SolicitudVisitaSerializer, SolicitudVisitaCreateSerializer, SolicitudVisitaListSerializer
+)
+from clientes.models import Cliente
 from usuarios.permissions import IsAgenteOrAdmin
 
 class VisitaViewSet(viewsets.ModelViewSet):
@@ -275,3 +280,222 @@ class VisitaViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'Estados actualizados automáticamente'
         })
+
+
+class SolicitudVisitaViewSet(viewsets.ModelViewSet):
+    """ViewSet para operaciones CRUD de solicitudes de visita"""
+
+    queryset = SolicitudVisita.objects.all()
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['cliente', 'propiedad', 'estado', 'procesado_por']
+    search_fields = ['cliente__nombre', 'cliente__apellido', 'cliente__dni', 'propiedad__titulo', 'mensaje']
+    ordering_fields = ['fecha_creacion', 'fecha_procesamiento']
+    ordering = ['-fecha_creacion']
+
+    def _get_cliente_asociado(self, user):
+        """Obtener el cliente asociado al usuario cliente"""
+        cliente = Cliente.objects.filter(email=user.email).first()
+        if not cliente:
+            raise ValidationError({'cliente': 'No se encontró un cliente asociado a este usuario.'})
+        return cliente
+
+    def get_queryset(self):
+        """Filtrar queryset según el rol del usuario"""
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        # Si es cliente, solo ver sus propias solicitudes
+        if user.rol == 'cliente':
+            queryset = queryset.filter(cliente__email=user.email)
+        # Si es agente o admin, ver todas las solicitudes
+
+        return queryset
+
+    def get_serializer_class(self):
+        """Seleccionar serializer según la acción"""
+        if self.action == 'list':
+            return SolicitudVisitaListSerializer
+        elif self.action == 'create':
+            return SolicitudVisitaCreateSerializer
+        return SolicitudVisitaSerializer
+
+    def perform_create(self, serializer):
+        """Asignar automáticamente el cliente basado en el usuario autenticado"""
+        user = self.request.user
+
+        # Si el usuario es cliente, asignar automáticamente su cliente
+        if user.rol == 'cliente':
+            cliente = self._get_cliente_asociado(user)
+            
+            # Validar que el cliente no tenga solicitudes recientes (rate limiting)
+            # Buscar la última solicitud del cliente
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            ahora = timezone.now()
+            tiempo_bloqueo = timedelta(hours=2)  # 2 horas como en Visita
+            
+            ultima_solicitud = SolicitudVisita.objects.filter(
+                cliente_id=cliente.id
+            ).order_by('-fecha_creacion').first()
+            
+            if ultima_solicitud:
+                tiempo_transcurrido = ahora - ultima_solicitud.fecha_creacion
+                
+                if tiempo_transcurrido < tiempo_bloqueo:
+                    tiempo_restante = tiempo_bloqueo - tiempo_transcurrido
+                    minutos_restantes = int(tiempo_restante.total_seconds() / 60)
+                    
+                    from rest_framework.exceptions import ValidationError as DRFValidationError
+                    raise DRFValidationError({
+                        'error': f'No puede solicitar una nueva visita. Debe esperar {minutos_restantes} minutos desde su última solicitud.'
+                    })
+            
+            serializer.save(cliente=cliente)
+        else:
+            serializer.save()
+
+    @action(detail=True, methods=['post'])
+    def aprobar(self, request, pk=None):
+        """Aprobar una solicitud de visita y crear la visita correspondiente"""
+        solicitud = self.get_object()
+        user = self.request.user
+
+        # Solo agentes y administradores pueden aprobar
+        if user.rol not in ['agente', 'administrador']:
+            return Response(
+                {'error': 'No tienes permisos para aprobar solicitudes'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not solicitud.puede_ser_aprobada:
+            return Response(
+                {'error': 'Esta solicitud no puede ser aprobada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Obtener fecha y hora del request
+        fecha = request.data.get('fecha')
+        hora = request.data.get('hora')
+
+        if not fecha or not hora:
+            return Response(
+                {'error': 'Se requieren fecha y hora para aprobar la solicitud'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Convertir strings a objetos de fecha/hora
+            fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+            hora_obj = datetime.strptime(hora, '%H:%M').time()
+
+            # Aprobar la solicitud
+            visita = solicitud.aprobar(user, fecha_obj, hora_obj)
+
+            serializer = SolicitudVisitaSerializer(solicitud)
+            return Response({
+                'solicitud': serializer.data,
+                'visita_creada': VisitaSerializer(visita).data
+            })
+
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': 'Error al aprobar la solicitud'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def rechazar(self, request, pk=None):
+        """Rechazar una solicitud de visita"""
+        solicitud = self.get_object()
+        user = self.request.user
+
+        # Solo agentes y administradores pueden rechazar
+        if user.rol not in ['agente', 'administrador']:
+            return Response(
+                {'error': 'No tienes permisos para rechazar solicitudes'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not solicitud.puede_ser_rechazada:
+            return Response(
+                {'error': 'Esta solicitud no puede ser rechazada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        motivo = request.data.get('motivo', '')
+
+        try:
+            solicitud.rechazar(user, motivo)
+            serializer = self.get_serializer(solicitud)
+            return Response(serializer.data)
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['post'])
+    def cancelar(self, request, pk=None):
+        """Cancelar una solicitud de visita (por el cliente)"""
+        solicitud = self.get_object()
+        user = self.request.user
+
+        # Solo el cliente que creó la solicitud puede cancelarla
+        if user.rol == 'cliente' and solicitud.cliente.email != user.email:
+            return Response(
+                {'error': 'No puedes cancelar esta solicitud'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not solicitud.puede_ser_cancelada:
+            return Response(
+                {'error': 'Esta solicitud no puede ser cancelada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            solicitud.cancelar(request.data.get('motivo', ''))
+            serializer = self.get_serializer(solicitud)
+            return Response(serializer.data)
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=False, methods=['get'])
+    def pendientes(self, request):
+        """Obtener solicitudes pendientes para agentes/administradores"""
+        user = self.request.user
+
+        if user.rol not in ['agente', 'administrador']:
+            return Response(
+                {'error': 'No tienes permisos para ver solicitudes pendientes'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        solicitudes = SolicitudVisita.objects.filter(estado='pendiente').order_by('fecha_creacion')
+        serializer = self.get_serializer(solicitudes, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def mis_solicitudes(self, request):
+        """Obtener solicitudes del cliente autenticado"""
+        user = self.request.user
+
+        if user.rol != 'cliente':
+            return Response(
+                {'error': 'Este endpoint es solo para clientes'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        solicitudes = SolicitudVisita.objects.filter(cliente__email=user.email).order_by('-fecha_creacion')
+        serializer = self.get_serializer(solicitudes, many=True)
+        return Response(serializer.data)

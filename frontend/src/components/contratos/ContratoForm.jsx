@@ -7,32 +7,6 @@ import SelectorPropiedadContratoModal from './SelectorPropiedadContratoModal';
 
 const generarPDFContrato = (contrato, cliente, propiedad) => {
   // ... (la misma función que ya tenías, se omite por brevedad pero debe estar igual)
-  const formatDate = (d) => {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-  const formatCurrency = (v) => {
-    if (!v) return '$ 0,00';
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v);
-  };
-
-  const hoy = formatDate(new Date());
-  const tipoLabel = contrato.tipo === 'alquiler' ? 'Alquiler' : 'Venta';
-  const clienteNombre = cliente?.nombre_completo || `${cliente?.nombre || ''} ${cliente?.apellido || ''}`.trim() || '—';
-  const propDireccion = propiedad?.direccion || '—';
-  const propCiudad = propiedad?.ciudad || '—';
-  const propTipo = (propiedad?.tipo || '').charAt(0).toUpperCase() + (propiedad?.tipo || '').slice(1);
-
-  const fechasSection = contrato.tipo === 'alquiler' && contrato.fecha_inicio ? `
-    <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;width:40%">Fecha de Inicio</td>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${formatDate(contrato.fecha_inicio)}</td>
-  </tr>
-  ${contrato.fecha_fin ? `
-    <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Fecha de Fin</td>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${formatDate(contrato.fecha_fin)}</td>
-  </tr>` : ''}
-  ` : '';
-
   const htmlContent = `<!DOCTYPE html>...`; // Mantén tu función de PDF igual
 
   const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });

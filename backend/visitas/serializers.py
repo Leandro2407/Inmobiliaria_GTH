@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from .models import Visita
+from .models import Visita, SolicitudVisita
 from clientes.serializers import ClienteListSerializer
 from usuarios.serializers import AgenteSerializer
+from propiedades.serializers import PropiedadListSerializer
 from django.utils import timezone
 from datetime import datetime, timedelta
 
@@ -253,4 +254,87 @@ class VisitaListSerializer(serializers.ModelSerializer):
             'resultado', 'estado', 'fecha_creacion', 'creado_por_nombre',
             'empleado', 'empleado_nombre',
             'puede_ser_cancelada', 'puede_ser_finalizada'
+        ]
+
+
+class SolicitudVisitaSerializer(serializers.ModelSerializer):
+    """Serializer completo para SolicitudVisita"""
+
+    # Campos computados para enriquecer la respuesta
+    cliente_info = ClienteListSerializer(source='cliente', read_only=True)
+    cliente_nombre = serializers.CharField(source='cliente.nombre_completo', read_only=True)
+    cliente_dni = serializers.CharField(source='cliente.dni', read_only=True)
+    propiedad_info = PropiedadListSerializer(source='propiedad', read_only=True)
+    propiedad_titulo = serializers.CharField(source='propiedad.titulo', read_only=True)
+    procesado_por_nombre = serializers.CharField(source='procesado_por.get_full_name', read_only=True)
+
+    # Propiedades del modelo (solo lectura)
+    puede_ser_aprobada = serializers.BooleanField(read_only=True)
+    puede_ser_rechazada = serializers.BooleanField(read_only=True)
+    puede_ser_cancelada = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = SolicitudVisita
+        fields = [
+            'id', 'cliente', 'cliente_info', 'cliente_nombre', 'cliente_dni',
+            'propiedad', 'propiedad_info', 'propiedad_titulo',
+            'mensaje', 'estado',
+            'procesado_por', 'procesado_por_nombre',
+            'fecha_creacion', 'fecha_actualizacion', 'fecha_procesamiento',
+            'visita_creada',
+            'puede_ser_aprobada', 'puede_ser_rechazada', 'puede_ser_cancelada'
+        ]
+        read_only_fields = [
+            'fecha_creacion', 'fecha_actualizacion', 'fecha_procesamiento',
+            'procesado_por', 'visita_creada'
+        ]
+
+
+class SolicitudVisitaCreateSerializer(serializers.ModelSerializer):
+    """Serializer especializado para crear nuevas solicitudes de visita"""
+
+    class Meta:
+        model = SolicitudVisita
+        fields = ['cliente', 'propiedad', 'mensaje']
+        read_only_fields = ['estado']
+        extra_kwargs = {
+            'cliente': {'required': False, 'allow_null': True}
+        }
+
+    def validate_cliente(self, value):
+        """Validar que el cliente no tenga solicitudes recientes (si está presente)"""
+        # Si cliente es None, será asignado automáticamente en perform_create
+        if value is None:
+            return value
+            
+        from .models import Visita
+
+        puede_agendar, tiempo_restante, ultima_visita = Visita.cliente_puede_agendar(value.id)
+
+        if not puede_agendar:
+            raise serializers.ValidationError(
+                f"No puede solicitar una nueva visita. "
+                f"Debe esperar {tiempo_restante} minutos desde su última solicitud."
+            )
+
+        return value
+
+
+class SolicitudVisitaListSerializer(serializers.ModelSerializer):
+    """Serializer optimizado para listados de solicitudes de visita"""
+
+    cliente_nombre = serializers.CharField(source='cliente.nombre_completo', read_only=True)
+    cliente_dni = serializers.CharField(source='cliente.dni', read_only=True)
+    propiedad_titulo = serializers.CharField(source='propiedad.titulo', read_only=True)
+    procesado_por_nombre = serializers.CharField(source='procesado_por.get_full_name', read_only=True)
+    puede_ser_aprobada = serializers.BooleanField(read_only=True)
+    puede_ser_rechazada = serializers.BooleanField(read_only=True)
+    puede_ser_cancelada = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = SolicitudVisita
+        fields = [
+            'id', 'cliente_nombre', 'cliente_dni', 'propiedad_titulo',
+            'mensaje', 'estado', 'fecha_creacion', 'procesado_por_nombre',
+            'puede_ser_aprobada', 'puede_ser_rechazada', 'puede_ser_cancelada'
         ]

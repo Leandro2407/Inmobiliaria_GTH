@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, Form, Row, Col, Alert, Spinner, ProgressBar } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import visitaService from '../../services/visitaService';
@@ -36,7 +36,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
 
   // Función para verificar si la edición está permitida (más de 2 horas antes)
   // 🔧 CORREGIDO: Solo aplica para visitas pendientes, no para finalizadas
-  const verificarEdicionPermitida = (fecha, hora) => {
+  const verificarEdicionPermitida = useCallback((fecha, hora) => {
     // Si la visita ya está finalizada, siempre permitir edición de resultado/descripción
     if (visita?.estado === 'finalizada') {
       return true;
@@ -71,7 +71,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       console.error('Error al verificar tiempo de edición:', error);
       return true;
     }
-  };
+  }, [visita?.estado]);
 
   // Cargar empleados disponibles
   const cargarEmpleados = async () => {
@@ -228,7 +228,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       verificarBloqueoCliente(cliente.id);
     }
     setErrors({});
-  }, [visita, cliente, show, onHide]);
+  }, [visita, cliente, show, onHide, verificarEdicionPermitida]);
 
   // Efecto para verificar edición cuando cambian fecha u hora (solo para visitas pendientes)
   useEffect(() => {
@@ -237,7 +237,7 @@ const VisitaForm = ({ show, onHide, visita, cliente, onSuccess }) => {
       const puedeEditar = verificarEdicionPermitida(formData.fecha, formData.hora);
       setEdicionBloqueada(!puedeEditar);
     }
-  }, [formData.fecha, formData.hora, esEdicion, visita?.estado]);
+  }, [formData.fecha, formData.hora, esEdicion, visita?.estado, verificarEdicionPermitida]);
 
   // Manejar cambio de empleados (adaptador para EmpleadoSelector)
   const handleEmpleadosChange = (selectedEmpleados) => {

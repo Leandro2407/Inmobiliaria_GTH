@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from clientes.models import Cliente
 from usuarios.models import Usuario
+from propiedades.models import Propiedad
 
 class Visita(models.Model):
     """Modelo para gestionar visitas programadas con clientes"""
@@ -310,7 +311,7 @@ class Visita(models.Model):
     @property
     def esta_pendiente(self):
         """Verifica si la visita está pendiente"""
-        return self.estado == 'pendiente'
+        return self.estado in ['pendiente', 'aprobada']
     
     @property
     def esta_en_curso(self):
@@ -330,7 +331,7 @@ class Visita(models.Model):
     @property
     def puede_ser_cancelada(self):
         """Determina si la visita puede ser cancelada"""
-        return self.estado == 'pendiente'
+        return self.estado in ['pendiente', 'aprobada']
     
     @property
     def puede_ser_finalizada(self):
@@ -373,3 +374,169 @@ class Visita(models.Model):
             return diferencia > 2
         except Exception as e:
             return False
+
+class SolicitudVisita(models.Model):
+    """Modelo para gestionar solicitudes de visita de clientes"""
+
+    # Opciones para estados de solicitudes
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('aprobada', 'Aprobada'),
+        ('rechazada', 'Rechazada'),
+        ('cancelada', 'Cancelada'),
+    ]
+
+    # Relación con el cliente que solicita
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='solicitudes_visita',
+        verbose_name='Cliente solicitante'
+    )
+
+    # Relación con la propiedad solicitada
+    propiedad = models.ForeignKey(
+        Propiedad,
+        on_delete=models.CASCADE,
+        related_name='solicitudes_visita',
+        verbose_name='Propiedad solicitada'
+    )
+
+    # Empleado que procesa la solicitud (opcional, se asigna cuando se aprueba)
+    procesado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='solicitudes_procesadas',
+        verbose_name='Procesado por',
+        limit_choices_to={'rol__in': ['agente', 'administrador']}
+    )
+
+    # Información de la solicitud
+    mensaje = models.TextField(
+        'Mensaje del cliente',
+        blank=True,
+        help_text='Mensaje opcional del cliente al solicitar la visita'
+    )
+
+    # Estado de la solicitud
+    estado = models.CharField(
+        'Estado',
+        max_length=15,
+        choices=ESTADO_CHOICES,
+        default='pendiente'
+    )
+
+    # Información de creación y auditoría
+    fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField('Última actualización', auto_now=True)
+    fecha_procesamiento = models.DateTimeField('Fecha de procesamiento', null=True, blank=True)
+
+    # Relación con la visita creada (si se aprueba)
+    visita_creada = models.OneToOneField(
+        Visita,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='solicitud_origen',
+        verbose_name='Visita creada'
+    )
+
+    class Meta:
+        """Configuración adicional del modelo"""
+        verbose_name = 'Solicitud de Visita'
+        verbose_name_plural = 'Solicitudes de Visita'
+        ordering = ['-fecha_creacion']
+        indexes = [
+            models.Index(fields=['cliente', 'estado']),
+            models.Index(fields=['propiedad', 'estado']),
+            models.Index(fields=['estado', 'fecha_creacion']),
+            models.Index(fields=['procesado_por']),
+        ]
+
+    def __str__(self):
+        """Representación legible de la solicitud"""
+        return f"Solicitud de {self.cliente.nombre_completo} para {self.propiedad.titulo}"
+
+    def aprobar(self, empleado, fecha, hora):
+        """
+        Aprueba la solicitud y crea una visita
+        """
+        from .models import Visita  # Importación local para evitar circular imports
+
+        if self.estado != 'pendiente':
+            raise ValueError("Solo se pueden aprobar solicitudes pendientes")
+
+        # Crear la visita
+        visita = Visita.objects.create(
+            cliente=self.cliente,
+            empleado=empleado,
+            fecha=fecha,
+            hora=hora,
+            descripcion=f"Visita solicitada para la propiedad: {self.propiedad.titulo}",
+            creado_por=empleado,
+            estado='pendiente'
+        )
+
+        # Actualizar la solicitud
+        self.estado = 'aprobada'
+        self.procesado_por = empleado
+        self.fecha_procesamiento = timezone.now()
+        self.visita_creada = visita
+        self.save()
+
+        return visita
+
+    def rechazar(self, empleado, motivo=None):
+        """
+        Rechaza la solicitud
+        """
+        if self.estado != 'pendiente':
+            raise ValueError("Solo se pueden rechazar solicitudes pendientes")
+
+        self.estado = 'rechazada'
+        self.procesado_por = empleado
+        self.fecha_procesamiento = timezone.now()
+        if motivo:
+            self.mensaje = f"{self.mensaje}\n\nMotivo del rechazo: {motivo}".strip()
+        self.save()
+
+    def cancelar(self, motivo=None):
+        """
+        Cancela la solicitud (por el cliente) y la visita asociada si ya fue aprobada.
+        """
+        if self.estado not in ['pendiente', 'aprobada']:
+            raise ValueError("Solo se pueden cancelar solicitudes pendientes o aprobadas")
+
+        self.estado = 'cancelada'
+        self.fecha_procesamiento = timezone.now()
+
+        if motivo:
+            self.mensaje = f"{self.mensaje}\n\nMotivo de la cancelación: {motivo}".strip()
+
+        self.save()
+
+        if self.visita_creada:
+            visita = self.visita_creada
+            if visita.puede_ser_cancelada:
+                visita.estado = 'cancelada'
+                visita.save()
+            else:
+                # Si la visita no puede cancelarse por el estado actual, no hacemos nada adicional.
+                pass
+
+    @property
+    def puede_ser_aprobada(self):
+        """Determina si la solicitud puede ser aprobada"""
+        return self.estado == 'pendiente'
+
+    @property
+    def puede_ser_rechazada(self):
+        """Determina si la solicitud puede ser rechazada"""
+        return self.estado == 'pendiente'
+
+    @property
+    def puede_ser_cancelada(self):
+        """Determina si la solicitud puede ser cancelada por el cliente"""
+        return self.estado in ['pendiente', 'aprobada']

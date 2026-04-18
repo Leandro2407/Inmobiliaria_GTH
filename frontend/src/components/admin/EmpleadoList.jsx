@@ -37,7 +37,18 @@ const EmpleadoList = () => {
 
   const isAdmin = authService.isAdmin();
 
+  // Función para determinar si se puede editar/eliminar un empleado específico
+  const canModifyEmpleado = (empleado) => {
+    if (!isAdmin) return false; // Solo administradores pueden modificar
+    if (empleado.rol === 'administrador') return false; // No se puede modificar otros administradores
+    return true; // Se puede modificar agentes
+  };
+
   const openDeleteModal = (empleado) => {
+    if (!canModifyEmpleado(empleado)) {
+      toast.error('No tienes permisos para eliminar este empleado');
+      return;
+    }
     setEmpleadoToDelete(empleado);
     setShowDeleteModal(true);
   };
@@ -64,6 +75,10 @@ const EmpleadoList = () => {
   };
 
   const handleEdit = (empleado) => {
+    if (!canModifyEmpleado(empleado)) {
+      toast.error('No tienes permisos para editar este empleado');
+      return;
+    }
     setSelectedEmpleado(empleado);
     setShowEditModal(true);
   };
@@ -106,6 +121,13 @@ const EmpleadoList = () => {
           </Alert>
         )}
 
+        {isAdmin && (
+          <Alert variant="info" className="mb-3">
+            <i className="fas fa-info-circle me-2"></i>
+            <strong>Permisos de administrador:</strong> Puedes editar y eliminar agentes, pero no otros administradores.
+          </Alert>
+        )}
+
         {loading ? (
           <div className="text-center"><Spinner animation="border" /></div>
         ) : (
@@ -141,8 +163,10 @@ const EmpleadoList = () => {
                       size="sm"
                       className="me-1"
                       onClick={() => handleEdit(e)}
-                      title={!isAdmin ? 'Se necesita ser administrador para editar' : 'Editar empleado'}
-                      disabled={!isAdmin}
+                      title={!canModifyEmpleado(e) ? 
+                        (e.rol === 'administrador' ? 'No puedes editar otros administradores' : 'Se necesita ser administrador para editar') 
+                        : 'Editar empleado'}
+                      disabled={!canModifyEmpleado(e)}
                     >
                       <i className="fas fa-edit"></i>
                     </Button>
@@ -150,8 +174,10 @@ const EmpleadoList = () => {
                       variant="outline-dark"
                       size="sm"
                       onClick={() => openDeleteModal(e)}
-                      title={!isAdmin ? 'Se necesita ser administrador para eliminar' : 'Eliminar empleado'}
-                      disabled={!isAdmin}
+                      title={!canModifyEmpleado(e) ? 
+                        (e.rol === 'administrador' ? 'No puedes eliminar otros administradores' : 'Se necesita ser administrador para eliminar') 
+                        : 'Eliminar empleado'}
+                      disabled={!canModifyEmpleado(e)}
                     >
                       <i className="fas fa-trash"></i>
                     </Button>

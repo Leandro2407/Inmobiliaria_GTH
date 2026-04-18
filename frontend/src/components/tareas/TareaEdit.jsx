@@ -25,46 +25,46 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
     return `${year}-${month}-${day}`;
   };
 
-  // 🔧 CORRECCIÓN: Ajustar la fecha según la diferencia
-  const ajustarFechaParaMostrar = (fechaBackend) => {
-    if (!fechaBackend) return '';
-    
-    // Extraer la fecha como string YYYY-MM-DD
-    let fechaStr = '';
-    if (typeof fechaBackend === 'string') {
-      const match = fechaBackend.match(/(\d{4}-\d{2}-\d{2})/);
-      if (match) fechaStr = match[1];
-    } else {
-      const d = new Date(fechaBackend);
-      fechaStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    }
-    
-    if (!fechaStr) return '';
-    
-    // Obtener fecha actual local
-    const hoy = getTodayDate();
-    
-    console.log('📅 Fecha backend:', fechaStr);
-    console.log('📅 Fecha actual:', hoy);
-    
-    // Si la fecha del backend es mayor que hoy (ej: 2026-04-17 vs hoy 2026-04-16)
-    if (fechaStr > hoy) {
-      // Restar 1 día
-      const [year, month, day] = fechaStr.split('-').map(Number);
-      const fechaObj = new Date(year, month - 1, day);
-      fechaObj.setDate(fechaObj.getDate() - 1);
-      const resultado = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth()+1).padStart(2,'0')}-${String(fechaObj.getDate()).padStart(2,'0')}`;
-      console.log('📅 Se resta 1 día:', resultado);
-      return resultado;
-    }
-    
-    // Si la fecha del backend es igual o menor a hoy, mostrarla tal cual
-    console.log('📅 Se muestra fecha original:', fechaStr);
-    return fechaStr;
-  };
-
   useEffect(() => {
     if (tarea && show) {
+      // 🔧 CORRECCIÓN: Ajustar la fecha según la diferencia
+      const ajustarFechaParaMostrar = (fechaBackend) => {
+        if (!fechaBackend) return '';
+        
+        // Extraer la fecha como string YYYY-MM-DD
+        let fechaStr = '';
+        if (typeof fechaBackend === 'string') {
+          const match = fechaBackend.match(/(\d{4}-\d{2}-\d{2})/);
+          if (match) fechaStr = match[1];
+        } else {
+          const d = new Date(fechaBackend);
+          fechaStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+        
+        if (!fechaStr) return '';
+        
+        // Obtener fecha actual local
+        const hoy = getTodayDate();
+        
+        console.log('📅 Fecha backend:', fechaStr);
+        console.log('📅 Fecha actual:', hoy);
+        
+        // Si la fecha del backend es mayor que hoy (ej: 2026-04-17 vs hoy 2026-04-16)
+        if (fechaStr > hoy) {
+          // Restar 1 día
+          const [year, month, day] = fechaStr.split('-').map(Number);
+          const fechaObj = new Date(year, month - 1, day);
+          fechaObj.setDate(fechaObj.getDate() - 1);
+          const resultado = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth()+1).padStart(2,'0')}-${String(fechaObj.getDate()).padStart(2,'0')}`;
+          console.log('📅 Se resta 1 día:', resultado);
+          return resultado;
+        }
+        
+        // Si la fecha del backend es igual o menor a hoy, mostrarla tal cual
+        console.log('📅 Se muestra fecha original:', fechaStr);
+        return fechaStr;
+      };
+      
       // Guardar fecha original
       let fechaOriginal = '';
       if (tarea.fecha) {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Container, Row, Col, Breadcrumb, Carousel, Button, Spinner, Modal } from 'react-bootstrap';
+import { Container, Row, Col, Breadcrumb, Carousel, Button, Spinner, Modal, Form, Alert } from 'react-bootstrap';
 import propiedadService from '../services/propiedadService';
+import solicitudVisitaService from '../services/solicitudVisitaService';
+import authService from '../services/authService';
 import { BACKEND_URL } from '../services/api';
 import '../styles/PropertyDetailPage.css'; // ← IMPORTANTE: Ruta correcta al CSS
 
@@ -12,6 +14,13 @@ const PropertyDetailPage = () => {
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [carouselIndex, setCarouselIndex] = useState(0);
+
+  // Estados para el modal de agendar visita
+  const [showVisitaModal, setShowVisitaModal] = useState(false);
+  const [solicitandoVisita, setSolicitandoVisita] = useState(false);
+  const [mensajeVisita, setMensajeVisita] = useState('');
+  const [errorVisita, setErrorVisita] = useState('');
+  const [visitaAgendada, setVisitaAgendada] = useState(false);
 
   useEffect(() => {
     const fetchPropiedad = async () => {
@@ -37,6 +46,59 @@ const PropertyDetailPage = () => {
   const handleImageClick = (index) => {
     setSelectedImageIndex(index);
     setShowImageModal(true);
+  };
+
+  // Abrir modal de agendar visita
+  const handleAgendarVisita = () => {
+    const user = authService.getCurrentUser();
+    if (!user) {
+      setErrorVisita('Debes iniciar sesión para agendar una visita');
+      return;
+    }
+    if (user.rol !== 'cliente') {
+      setErrorVisita('Solo los clientes pueden agendar visitas');
+      return;
+    }
+    setShowVisitaModal(true);
+    setErrorVisita('');
+    setMensajeVisita('');
+  };
+
+  // Enviar solicitud de visita
+  const handleSubmitVisita = async (e) => {
+    e.preventDefault();
+
+    if (!mensajeVisita.trim()) {
+      setErrorVisita('Por favor, escribe un mensaje para tu solicitud');
+      return;
+    }
+
+    setSolicitandoVisita(true);
+    setErrorVisita('');
+
+    try {
+      const solicitudData = {
+        propiedad: id,
+        mensaje: mensajeVisita.trim()
+      };
+
+      await solicitudVisitaService.create(solicitudData);
+      setVisitaAgendada(true);
+      setTimeout(() => {
+        setShowVisitaModal(false);
+        setVisitaAgendada(false);
+        setMensajeVisita('');
+      }, 2000);
+    } catch (error) {
+      console.error('Error al solicitar visita:', error);
+      setErrorVisita(
+        error.mensaje ||
+        error.error ||
+        'Error al enviar la solicitud. Inténtalo de nuevo.'
+      );
+    } finally {
+      setSolicitandoVisita(false);
+    }
   };
 
   if (loading) {
@@ -248,6 +310,15 @@ const PropertyDetailPage = () => {
                   <i className="fas fa-envelope me-2"></i>
                   Enviar Consulta
                 </Button>
+                <Button
+                  variant="success"
+                  size="lg"
+                  onClick={handleAgendarVisita}
+                  className="d-flex align-items-center justify-content-center"
+                >
+                  <i className="fas fa-calendar-check me-2"></i>
+                  Agendar Visita
+                </Button>
               </div>
             </div>
           </Col>
@@ -344,6 +415,112 @@ const PropertyDetailPage = () => {
           </Col>
         </Row>
       </Container>
+
+      {/* Modal para agendar visita */}
+      <Modal
+        show={showVisitaModal}
+        onHide={() => {
+          if (!solicitandoVisita) {
+            setShowVisitaModal(false);
+            setErrorVisita('');
+            setMensajeVisita('');
+            setVisitaAgendada(false);
+          }
+        }}
+        centered
+      >
+        <Modal.Header closeButton={!solicitandoVisita}>
+          <Modal.Title>
+            <i className="fas fa-calendar-check me-2"></i>
+            Solicitar Visita
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSubmitVisita}>
+          <Modal.Body>
+            {errorVisita && (
+              <Alert variant="danger" className="mb-3">
+                <i className="fas fa-exclamation-triangle me-2"></i>
+                {errorVisita}
+              </Alert>
+            )}
+
+            {visitaAgendada ? (
+              <Alert variant="success" className="text-center">
+                <i className="fas fa-check-circle fa-2x mb-3"></i>
+                <h5>¡Solicitud enviada!</h5>
+                <p className="mb-0">
+                  Tu solicitud de visita ha sido enviada correctamente.
+                  Recibirás una notificación cuando sea procesada.
+                </p>
+              </Alert>
+            ) : (
+              <>
+                <div className="mb-3">
+                  <h6 className="fw-bold mb-2">Propiedad:</h6>
+                  <p className="text-muted mb-0">{propiedad?.titulo}</p>
+                </div>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold">
+                    Mensaje para el agente <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={4}
+                    placeholder="Describe brevemente qué te gustaría ver en la visita, horarios preferidos, o cualquier información adicional..."
+                    value={mensajeVisita}
+                    onChange={(e) => setMensajeVisita(e.target.value)}
+                    required
+                    disabled={solicitandoVisita}
+                  />
+                  <Form.Text className="text-muted">
+                    Este mensaje será enviado al agente inmobiliario junto con tu solicitud.
+                  </Form.Text>
+                </Form.Group>
+
+                <Alert variant="info" className="mb-0">
+                  <i className="fas fa-info-circle me-2"></i>
+                  <strong>Nota:</strong> El agente revisará tu solicitud y te contactará
+                  para coordinar la fecha y hora de la visita.
+                </Alert>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowVisitaModal(false);
+                setErrorVisita('');
+                setMensajeVisita('');
+                setVisitaAgendada(false);
+              }}
+              disabled={solicitandoVisita}
+            >
+              {visitaAgendada ? 'Cerrar' : 'Cancelar'}
+            </Button>
+            {!visitaAgendada && (
+              <Button
+                variant="success"
+                type="submit"
+                disabled={solicitandoVisita || !mensajeVisita.trim()}
+              >
+                {solicitandoVisita ? (
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-paper-plane me-2"></i>
+                    Enviar Solicitud
+                  </>
+                )}
+              </Button>
+            )}
+          </Modal.Footer>
+        </Form>
+      </Modal>
 
       {/* Modal para ver imágenes en grande */}
       <Modal 

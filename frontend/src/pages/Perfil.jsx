@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Spinner, Image, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Spinner, Image, Badge, Tab, Tabs, Alert } from 'react-bootstrap';
 import { useSelector, useDispatch } from 'react-redux';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-toastify';
 import authService from '../services/authService';
+import solicitudVisitaService from '../services/solicitudVisitaService';
 import { BACKEND_URL } from '../services/api';
 import { setUser } from '../store/slices/authSlice';
 import '../styles/Perfil.css';
@@ -46,12 +47,12 @@ const Perfil = () => {
   const [imageError, setImageError] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
 
-  const isEmpleado = user?.rol === 'agente' || user?.rol === 'administrador';
+  // Estados para la agenda (solo para clientes)
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [loadingSolicitudes, setLoadingSolicitudes] = useState(false);
+  const [activeTab, setActiveTab] = useState('perfil');
 
-  const puestosOptions = [
-    { value: 'agente_inmobiliario', label: 'Agente Inmobiliario' },
-    { value: 'administrador', label: 'Administrador' },
-  ];
+  const isEmpleado = user?.rol === 'agente' || user?.rol === 'administrador';
 
   const themeColors = {
     primary: '#2c3e50',
@@ -72,7 +73,69 @@ const Perfil = () => {
       setPreviewImage(imageUrl);
       setImageError(false);
     }
+
+    // Cargar solicitudes de visita si es cliente
+    if (user?.rol === 'cliente') {
+      cargarSolicitudes();
+    }
   }, [user]);
+
+  // Función para cargar solicitudes de visita
+  const cargarSolicitudes = async () => {
+    try {
+      setLoadingSolicitudes(true);
+      const data = await solicitudVisitaService.getMisSolicitudes();
+      setSolicitudes(data);
+    } catch (error) {
+      console.error('Error al cargar solicitudes:', error);
+      toast.error('Error al cargar las solicitudes de visita');
+    } finally {
+      setLoadingSolicitudes(false);
+    }
+  };
+
+  // Función para cancelar una solicitud
+  const handleCancelarSolicitud = async (solicitudId) => {
+    if (!window.confirm('¿Estás seguro de que quieres cancelar esta solicitud de visita?')) {
+      return;
+    }
+
+    const motivo = window.prompt('Motivo de la cancelación (opcional):');
+    if (motivo === null) {
+      return;
+    }
+
+    try {
+      await solicitudVisitaService.cancelar(solicitudId, motivo.trim());
+      toast.success('Solicitud cancelada exitosamente');
+      cargarSolicitudes(); // Recargar la lista
+    } catch (error) {
+      console.error('Error al cancelar solicitud:', error);
+      toast.error(error.error || 'Error al cancelar la solicitud');
+    }
+  };
+
+  // Función para obtener el color del badge según el estado
+  const getEstadoBadgeVariant = (estado) => {
+    switch (estado) {
+      case 'pendiente': return 'warning';
+      case 'aprobada': return 'success';
+      case 'rechazada': return 'danger';
+      case 'cancelada': return 'secondary';
+      default: return 'light';
+    }
+  };
+
+  // Función para obtener el texto del estado
+  const getEstadoText = (estado) => {
+    switch (estado) {
+      case 'pendiente': return 'Pendiente';
+      case 'aprobada': return 'Aprobada';
+      case 'rechazada': return 'Rechazada';
+      case 'cancelada': return 'Cancelada';
+      default: return estado;
+    }
+  };
 
   const handleImageError = () => {
     console.error('❌ Error cargando la imagen:', previewImage);
@@ -117,8 +180,6 @@ const Perfil = () => {
     numeracion: Yup.string()
       .required('La numeración es requerida')
       .matches(/^[\d]+$/, 'La numeración solo puede contener números'),
-    puesto: Yup.string()
-      .required('El puesto es requerido'),
   });
 
   const clienteSchema = Yup.object().shape({
@@ -153,7 +214,6 @@ const Perfil = () => {
     barrio: user?.barrio || '',
     calle: user?.calle || '',
     numeracion: user?.numeracion || '',
-    puesto: user?.puesto || '',
   };
 
   const clienteInitialValues = {
@@ -308,23 +368,31 @@ const Perfil = () => {
             </Card.Header>
             
             <Card.Body className="p-4 p-md-5">
-              <Formik
-                initialValues={isEmpleado ? empleadoInitialValues : clienteInitialValues}
-                validationSchema={isEmpleado ? empleadoSchema : clienteSchema}
-                onSubmit={handleSubmit}
-                enableReinitialize
+              <Tabs
+                activeKey={activeTab}
+                onSelect={(k) => setActiveTab(k)}
+                className="mb-4"
+                justify
               >
-                {({
-                  values,
-                  errors,
-                  touched,
-                  handleChange,
-                  handleBlur,
-                  handleSubmit,
-                  setFieldValue,
-                  isSubmitting,
-                }) => (
-                  <Form onSubmit={handleSubmit}>
+                <Tab eventKey="perfil" title={<><i className="fas fa-user me-2"></i>Perfil</>}>
+                  <div className="mt-4">
+                    <Formik
+                      initialValues={isEmpleado ? empleadoInitialValues : clienteInitialValues}
+                      validationSchema={isEmpleado ? empleadoSchema : clienteSchema}
+                      onSubmit={handleSubmit}
+                      enableReinitialize
+                    >
+                      {({
+                        values,
+                        errors,
+                        touched,
+                        handleChange,
+                        handleBlur,
+                        handleSubmit,
+                        setFieldValue,
+                        isSubmitting,
+                      }) => (
+                        <Form onSubmit={handleSubmit}>
                     <div className="text-center mb-5">
                       <div className="profile-image-container position-relative d-inline-block">
                         {previewImage && !imageError ? (
@@ -773,39 +841,6 @@ const Perfil = () => {
                             </Row>
                           </div>
 
-                          <Form.Group className="mb-4">
-                            <Form.Label className="fw-semibold">
-                              <i className="fas fa-briefcase me-2 text-primary"></i>
-                              Puesto *
-                            </Form.Label>
-                            <Form.Select
-                              name="puesto"
-                              value={values.puesto}
-                              onChange={handleChange}
-                              onBlur={handleBlur}
-                              isInvalid={touched.puesto && errors.puesto}
-                              className="py-2"
-                              style={{ 
-                                borderRadius: '10px',
-                                border: `1px solid ${touched.puesto && errors.puesto ? themeColors.accent : '#dee2e6'}`,
-                                transition: 'all 0.3s ease',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <option value="">Selecciona un puesto</option>
-                              {puestosOptions.map((puesto) => (
-                                <option key={puesto.value} value={puesto.value}>
-                                  {puesto.label}
-                                </option>
-                              ))}
-                            </Form.Select>
-                            {touched.puesto && errors.puesto && (
-                              <div className="d-flex align-items-center mt-2 animate__animated animate__fadeIn">
-                                <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.accent }}></i>
-                                <small style={{ color: themeColors.accent }}>{errors.puesto}</small>
-                              </div>
-                            )}
-                          </Form.Group>
                         </div>
                       </div>
                     )}
@@ -944,6 +979,108 @@ const Perfil = () => {
                   </Form>
                 )}
               </Formik>
+            </div>
+                </Tab>
+
+                {!isEmpleado && (
+                  <Tab eventKey="agenda" title={<><i className="fas fa-calendar-check me-2"></i>Agenda</>}>
+                    <div className="mt-4">
+                      <div className="d-flex justify-content-between align-items-center mb-4">
+                        <h5 className="mb-0" style={{ color: themeColors.primary }}>
+                          <i className="fas fa-calendar-alt me-2"></i>
+                          Mis Solicitudes de Visita
+                        </h5>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={cargarSolicitudes}
+                          disabled={loadingSolicitudes}
+                        >
+                          {loadingSolicitudes ? (
+                            <Spinner animation="border" size="sm" />
+                          ) : (
+                            <i className="fas fa-sync-alt me-2"></i>
+                          )}
+                          Actualizar
+                        </Button>
+                      </div>
+
+                      {loadingSolicitudes ? (
+                        <div className="text-center py-5">
+                          <Spinner animation="border" variant="primary" />
+                          <p className="mt-2">Cargando solicitudes...</p>
+                        </div>
+                      ) : solicitudes.length === 0 ? (
+                        <Alert variant="info" className="text-center">
+                          <i className="fas fa-calendar-times fa-2x mb-3"></i>
+                          <h5>No tienes solicitudes de visita</h5>
+                          <p className="mb-0">
+                            Cuando solicites una visita a una propiedad, aparecerá aquí para que puedas hacer seguimiento.
+                          </p>
+                        </Alert>
+                      ) : (
+                        <Row>
+                          {solicitudes.map((solicitud) => (
+                            <Col md={6} lg={4} key={solicitud.id} className="mb-4">
+                              <Card className="h-100 shadow-sm" style={{ borderRadius: '15px' }}>
+                                <Card.Header style={{
+                                  background: `linear-gradient(90deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+                                  color: 'white',
+                                  borderTopLeftRadius: '15px',
+                                  borderTopRightRadius: '15px'
+                                }}>
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <small className="fw-bold">
+                                      <i className="fas fa-calendar me-1"></i>
+                                      {new Date(solicitud.fecha_creacion).toLocaleDateString()}
+                                    </small>
+                                    <Badge bg={getEstadoBadgeVariant(solicitud.estado)} style={{ fontSize: '0.75rem' }}>
+                                      {getEstadoText(solicitud.estado)}
+                                    </Badge>
+                                  </div>
+                                </Card.Header>
+
+                                <Card.Body>
+                                  <h6 className="fw-bold mb-2" style={{ color: themeColors.primary }}>
+                                    <i className="fas fa-home me-2"></i>
+                                    {solicitud.propiedad_titulo}
+                                  </h6>
+
+                                  {solicitud.mensaje && (
+                                    <p className="text-muted small mb-3" style={{ fontStyle: 'italic' }}>
+                                      "{solicitud.mensaje.length > 100
+                                        ? `${solicitud.mensaje.substring(0, 100)}...`
+                                        : solicitud.mensaje}"
+                                    </p>
+                                  )}
+
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <small className="text-muted">
+                                      <i className="fas fa-clock me-1"></i>
+                                      {new Date(solicitud.fecha_creacion).toLocaleTimeString()}
+                                    </small>
+
+                                    {['pendiente', 'aprobada'].includes(solicitud.estado) && (
+                                      <Button
+                                        variant="outline-danger"
+                                        size="sm"
+                                        onClick={() => handleCancelarSolicitud(solicitud.id)}
+                                      >
+                                        <i className="fas fa-times me-1"></i>
+                                        Cancelar
+                                      </Button>
+                                    )}
+                                  </div>
+                                </Card.Body>
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                      )}
+                    </div>
+                  </Tab>
+                )}
+              </Tabs>
             </Card.Body>
             
             <Card.Footer className="text-center py-3" style={{ 

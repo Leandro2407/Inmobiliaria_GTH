@@ -8,7 +8,7 @@ const visitaService = {
   getAll: async (params = {}) => {
     try {
       console.log('📄 Llamando a API visitas con params:', params);
-      const response = await api.get('/visitas/', { params });
+      const response = await api.get('/visitas/visitas/', { params });
       console.log('✅ Respuesta de visitas:', response);
       
       return response.data.results || response.data;
@@ -25,7 +25,7 @@ const visitaService = {
    */
   getById: async (id) => {
     try {
-      const response = await api.get(`/visitas/${id}/`);
+      const response = await api.get(`/visitas/visitas/${id}/`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -38,7 +38,7 @@ const visitaService = {
   create: async (visitaData) => {
     try {
       console.log('📤 CREATE - Datos enviados:', visitaData);
-      const response = await api.post('/visitas/', visitaData);
+      const response = await api.post('/visitas/visitas/', visitaData);
       console.log('✅ CREATE - Respuesta completa:', response);
       console.log('✅ CREATE - response.data:', response.data);
       console.log('✅ CREATE - response.status:', response.status);
@@ -57,7 +57,7 @@ const visitaService = {
     try {
       console.log(`📤 UPDATE - Visita ${id} - Datos enviados:`, visitaData);
       
-      const response = await api.patch(`/visitas/${id}/`, visitaData);
+      const response = await api.patch(`/visitas/visitas/${id}/`, visitaData);
       
       console.log('✅ UPDATE - Respuesta:', response.data);
       return response.data;
@@ -74,7 +74,7 @@ const visitaService = {
   partialUpdate: async (id, visitaData) => {
     try {
       console.log(`📤 PARTIAL UPDATE - Visita ${id}:`, visitaData);
-      const response = await api.patch(`/visitas/${id}/`, visitaData);
+      const response = await api.patch(`/visitas/visitas/${id}/`, visitaData);
       return response.data;
     } catch (error) {
       console.error(`❌ PARTIAL UPDATE - Error:`, error.response?.data);
@@ -87,7 +87,7 @@ const visitaService = {
    */
   delete: async (id) => {
     try {
-      const response = await api.delete(`/visitas/${id}/`);
+      const response = await api.delete(`/visitas/visitas/${id}/`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -100,7 +100,7 @@ const visitaService = {
   cambiarEstado: async (id, estado) => {
     try {
       console.log(`📤 CAMBIAR ESTADO - Visita ${id} a '${estado}'`);
-      const response = await api.post(`/visitas/${id}/cambiar_estado/`, { estado });
+      const response = await api.post(`/visitas/visitas/${id}/cambiar_estado/`, { estado });
       console.log('✅ CAMBIAR ESTADO - Respuesta:', response.data);
       return response.data;
     } catch (error) {
@@ -114,7 +114,7 @@ const visitaService = {
    */
   getPorCliente: async (clienteId) => {
     try {
-      const response = await api.get(`/visitas/por_cliente/?cliente_id=${clienteId}`);
+      const response = await api.get(`/visitas/visitas/por_cliente/?cliente_id=${clienteId}`);
       return response.data.results || response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -126,7 +126,7 @@ const visitaService = {
    */
   getProximasVisitas: async () => {
     try {
-      const response = await api.get('/visitas/proximas_visitas/');
+      const response = await api.get('/visitas/visitas/proximas_visitas/');
       return response.data.results || response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -139,7 +139,7 @@ const visitaService = {
   getClientesBloqueados: async () => {
     try {
       console.log('📤 Obteniendo clientes bloqueados...');
-      const response = await api.get('/visitas/clientes_bloqueados/');
+      const response = await api.get('/visitas/visitas/clientes_bloqueados/');
       console.log('✅ Clientes bloqueados:', response.data);
       return response.data;
     } catch (error) {
@@ -154,7 +154,7 @@ const visitaService = {
   verificarCliente: async (clienteId) => {
     try {
       console.log(`📤 Verificando cliente ${clienteId}...`);
-      const response = await api.post('/visitas/verificar_cliente/', { cliente_id: clienteId });
+      const response = await api.post('/visitas/visitas/verificar_cliente/', { cliente_id: clienteId });
       console.log('✅ Verificación de cliente:', response.data);
       return response.data;
     } catch (error) {
