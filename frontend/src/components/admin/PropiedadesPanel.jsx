@@ -68,6 +68,46 @@ const PropiedadesPanel = () => {
     operacion: '',
   });
 
+  // Estado para el tipo de propiedad en el wizard (para el indicador de progreso)
+  const [currentPropertyType, setCurrentPropertyType] = useState('');
+
+  // Estado para el wizard de pasos
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Definición de las secciones del wizard
+  const steps = [
+    {
+      title: 'Información Básica',
+      fields: ['titulo', 'descripcion', 'tipo', 'operacion', 'agente_cargo'],
+      required: ['titulo', 'descripcion', 'tipo', 'operacion', 'agente_cargo']
+    },
+    {
+      title: 'Precios',
+      fields: values => values.operacion === 'venta' ? ['precio_venta'] : ['precio_alquiler'],
+      required: values => values.operacion === 'venta' ? ['precio_venta'] : ['precio_alquiler']
+    },
+    {
+      title: 'Características',
+      fields: ['superficie_total'],
+      required: ['superficie_total']
+    },
+    {
+      title: 'Ubicación',
+      fields: ['calle', 'numero_calle', 'barrio', 'zona'],
+      required: ['calle', 'numero_calle', 'barrio', 'zona']
+    },
+    {
+      title: 'Características Principales',
+      fields: [],
+      required: []
+    },
+    {
+      title: 'Imágenes',
+      fields: [],
+      required: []
+    }
+  ];
+
   // Opciones de características principales
   const CARACTERISTICAS_OPTIONS = [
     'Jardín', 'Cocina integrada', 'Balcón', 'Pileta', 'Gimnasio', 'Quincho',
@@ -107,6 +147,11 @@ const PropiedadesPanel = () => {
     cargarPropiedades();
     cargarAgentes();
   }, [cargarPropiedades, cargarAgentes]);
+
+  const resetWizard = () => {
+    setCurrentStep(0);
+    setCurrentPropertyType('');
+  };
 
   const ensureAbsoluteUrl = (url) => {
     if (!url) return 'https://via.placeholder.com/400x300/343a40/ffffff?text=Propiedad';
@@ -325,6 +370,7 @@ const PropiedadesPanel = () => {
         setPropiedadEditar(null);
         setImagenesPrevias([]);
         imagenesPreviasRef.current = [];
+        resetWizard();
         cargarPropiedades();
       }, 350);
     } catch (error) {
@@ -384,6 +430,8 @@ const PropiedadesPanel = () => {
         caracteristicas_list: caracteristicasArray,
       });
 
+      setCurrentPropertyType(propiedadCompleta.tipo || '');
+
       // FIX: Cargar imagenes existentes y sincronizar el ref
       if (propiedadCompleta.imagenes && propiedadCompleta.imagenes.length > 0) {
         const previews = propiedadCompleta.imagenes.map(img => {
@@ -398,6 +446,7 @@ const PropiedadesPanel = () => {
         imagenesPreviasRef.current = [];
       }
 
+      resetWizard();
       setShowModal(true);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -439,6 +488,8 @@ const PropiedadesPanel = () => {
               onClick={() => {
                 setPropiedadEditar(null);
                 setImagenesPrevias([]);
+                resetWizard();
+                setCurrentPropertyType('');
                 setShowModal(true);
               }}
             >
@@ -797,6 +848,38 @@ const PropiedadesPanel = () => {
           <Modal.Title>
             {propiedadEditar ? 'Editar Propiedad' : 'Nueva Propiedad'}
           </Modal.Title>
+          {/* Indicador de progreso */}
+          <div className="mt-3">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              {steps.map((step, index) => {
+                // Para terrenos, el paso 4 (Características Principales) se considera completado automáticamente
+                const isCompleted = currentPropertyType === 'terreno' && index === 4 ? 
+                  currentStep >= 3 : index <= currentStep;
+                
+                return (
+                  <div key={index} className="d-flex align-items-center">
+                    <div 
+                      className={`rounded-circle d-flex align-items-center justify-content-center ${
+                        isCompleted ? 'bg-primary text-white' : 'bg-light text-muted'
+                      }`}
+                      style={{ width: '30px', height: '30px', fontSize: '14px' }}
+                    >
+                      {index + 1}
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div 
+                        className={`mx-2 ${isCompleted && (currentPropertyType === 'terreno' && index === 3 ? currentStep >= 3 : index < currentStep) ? 'bg-primary' : 'bg-light'}`}
+                        style={{ height: '2px', width: '40px' }}
+                      ></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="text-center">
+              <small className="text-muted">{steps[currentStep].title}</small>
+            </div>
+          </div>
         </Modal.Header>
         <Modal.Body>
           <Formik
@@ -837,46 +920,49 @@ const PropiedadesPanel = () => {
               handleSubmit,
               isSubmitting,
               setFieldValue,
+              setTouched,
             }) => (
               <Form onSubmit={handleSubmit}>
-                {/* Información Básica */}
-                <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
-                  <i className="fas fa-info-circle me-2"></i>
-                  Información Básica
-                </h5>
+                {/* Paso 0: Información Básica */}
+                {currentStep === 0 && (
+                  <>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-info-circle me-2"></i>
+                      Información Básica
+                    </h5>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Título de la Publicación *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="titulo"
-                    placeholder="Ej: Hermosa casa en Tres Cerritos con piscina"
-                    value={values.titulo}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    isInvalid={touched.titulo && errors.titulo}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.titulo}
-                  </Form.Control.Feedback>
-                </Form.Group>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Título de la Publicación *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="titulo"
+                        placeholder="Ej: Hermosa casa en Tres Cerritos con piscina"
+                        value={values.titulo}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        isInvalid={touched.titulo && errors.titulo}
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errors.titulo}
+                      </Form.Control.Feedback>
+                    </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Descripción *</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={4}
-                    name="descripcion"
-                    placeholder="Describa la propiedad en detalle..."
-                    value={values.descripcion}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    isInvalid={touched.descripcion && errors.descripcion}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.descripcion}
-                  </Form.Control.Feedback>
-                </Form.Group>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Descripción *</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={4}
+                        name="descripcion"
+                        placeholder="Describa la propiedad en detalle..."
+                        value={values.descripcion}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        isInvalid={touched.descripcion && errors.descripcion}
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errors.descripcion}
+                      </Form.Control.Feedback>
+                    </Form.Group>
 
                 <Row>
                   <Col md={4}>
@@ -885,7 +971,13 @@ const PropiedadesPanel = () => {
                       <Form.Select
                         name="tipo"
                         value={values.tipo}
-                        onChange={handleChange}
+                        onChange={(e) => {
+                          handleChange(e);
+                          setCurrentPropertyType(e.target.value);
+                          if (e.target.value === 'terreno') {
+                            setFieldValue('operacion', 'venta');
+                          }
+                        }}
                         onBlur={handleBlur}
                         isInvalid={touched.tipo && errors.tipo}
                       >
@@ -942,12 +1034,16 @@ const PropiedadesPanel = () => {
                     </Form.Group>
                   </Col>
                 </Row>
+                  </>
+                )}
 
-                {/* Precios */}
-                <h5 className="mb-3 mt-4" style={{ color: '#2c2c2c' }}>
-                  <i className="fas fa-dollar-sign me-2"></i>
-                  Precios
-                </h5>
+                {/* Paso 1: Precios */}
+                {currentStep === 1 && (
+                  <>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-dollar-sign me-2"></i>
+                      Precios
+                    </h5>
 
                 <Row>
                   {values.operacion === 'venta' && (
@@ -1011,13 +1107,17 @@ const PropiedadesPanel = () => {
                       </Form.Select>
                     </Form.Group>
                   </Col>
-                </Row>
+                    </Row>
+                  </>
+                )}
 
-                {/* Características */}
-                <h5 className="mb-3 mt-4" style={{ color: '#2c2c2c' }}>
-                  <i className="fas fa-list me-2"></i>
-                  Características
-                </h5>
+                {/* Paso 2: Características */}
+                {currentStep === 2 && (
+                  <>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-list me-2"></i>
+                      Características
+                    </h5>
 
                 <Row>
                   <Col md={3}>
@@ -1043,67 +1143,79 @@ const PropiedadesPanel = () => {
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
-                  <Col md={3}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Superficie Cubierta (m²)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="superficie_cubierta"
-                        value={values.superficie_cubierta}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || parseFloat(value) >= 0) {
-                            handleChange(e);
-                          }
-                        }}
-                        min="0"
-                        step="0.01"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={2}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Dormitorios</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="dormitorios"
-                        value={values.dormitorios}
-                        onChange={handleChange}
-                        min="0"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={2}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Baños</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="banos"
-                        value={values.banos}
-                        onChange={handleChange}
-                        min="0"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={2}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Cocheras</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="cocheras"
-                        value={values.cocheras}
-                        onChange={handleChange}
-                        min="0"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
+                  {values.tipo !== 'terreno' && (
+                    <Col md={3}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Superficie Cubierta (m²)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          name="superficie_cubierta"
+                          value={values.superficie_cubierta}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || parseFloat(value) >= 0) {
+                              handleChange(e);
+                            }
+                          }}
+                          min="0"
+                          step="0.01"
+                        />
+                      </Form.Group>
+                    </Col>
+                  )}
+                  {values.tipo !== 'terreno' && (
+                    <Col md={2}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Dormitorios</Form.Label>
+                        <Form.Control
+                          type="number"
+                          name="dormitorios"
+                          value={values.dormitorios}
+                          onChange={handleChange}
+                          min="0"
+                        />
+                      </Form.Group>
+                    </Col>
+                  )}
+                  {values.tipo !== 'terreno' && (
+                    <Col md={2}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Baños</Form.Label>
+                        <Form.Control
+                          type="number"
+                          name="banos"
+                          value={values.banos}
+                          onChange={handleChange}
+                          min="0"
+                        />
+                      </Form.Group>
+                    </Col>
+                  )}
+                  {values.tipo !== 'terreno' && (
+                    <Col md={2}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Cocheras</Form.Label>
+                        <Form.Control
+                          type="number"
+                          name="cocheras"
+                          value={values.cocheras}
+                          onChange={handleChange}
+                          min="0"
+                        />
+                      </Form.Group>
+                    </Col>
+                  )}
+                    </Row>
+                  </>
+                )}
 
-                {/* Ubicación */}
-                <h5 className="mb-3 mt-4" style={{ color: '#2c2c2c' }}>
-                  <i className="fas fa-map-marker-alt me-2"></i>
-                  Ubicación
-                </h5>
+                {/* Paso 3: Ubicación */}
+                {currentStep === 3 && (
+                  <>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-map-marker-alt me-2"></i>
+                      Ubicación
+                    </h5>
 
                 <Row>
                   <Col md={8}>
@@ -1232,41 +1344,49 @@ const PropiedadesPanel = () => {
                     Busca la dirección y arrastra el marcador para ajustar la posición exacta.
                   </Form.Text>
                 </Form.Group>
+                  </>
+                )}
 
-                {/* Características Principales (CHECKBOXES) */}
-                <h5 className="mb-3 mt-4" style={{ color: '#2c2c2c' }}>
-                  <i className="fas fa-check-square me-2"></i>
-                  Características Principales
-                </h5>
+                {/* Paso 4: Características Principales */}
+                {currentStep === 4 && values.tipo !== 'terreno' && (
+                  <>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-check-square me-2"></i>
+                      Características Principales
+                    </h5>
 
-                <Form.Group className="mb-3">
-                  <Row>
-                    {CARACTERISTICAS_OPTIONS.map((caracteristica, index) => (
-                      <Col md={4} key={index}>
-                        <Form.Check
-                          type="checkbox"
-                          id={`caracteristica-${index}`}
-                          label={caracteristica}
-                          checked={values.caracteristicas_list.includes(caracteristica)}
-                          onChange={(e) => {
-                            const isChecked = e.target.checked;
-                            if (isChecked) {
-                              setFieldValue('caracteristicas_list', [...values.caracteristicas_list, caracteristica]);
-                            } else {
-                              setFieldValue('caracteristicas_list', values.caracteristicas_list.filter(c => c !== caracteristica));
-                            }
-                          }}
-                        />
-                      </Col>
-                    ))}
-                  </Row>
-                </Form.Group>
+                    <Form.Group className="mb-3">
+                      <Row>
+                        {CARACTERISTICAS_OPTIONS.map((caracteristica, index) => (
+                          <Col md={4} key={index}>
+                            <Form.Check
+                              type="checkbox"
+                              id={`caracteristica-${index}`}
+                              label={caracteristica}
+                              checked={values.caracteristicas_list.includes(caracteristica)}
+                              onChange={(e) => {
+                                const isChecked = e.target.checked;
+                                if (isChecked) {
+                                  setFieldValue('caracteristicas_list', [...values.caracteristicas_list, caracteristica]);
+                                } else {
+                                  setFieldValue('caracteristicas_list', values.caracteristicas_list.filter(c => c !== caracteristica));
+                                }
+                              }}
+                            />
+                          </Col>
+                        ))}
+                      </Row>
+                    </Form.Group>
+                  </>
+                )}
 
-                {/* Imágenes */}
-                <h5 className="mb-3 mt-4" style={{ color: '#2c2c2c' }}>
-                  <i className="fas fa-images me-2"></i>
-                  Imágenes
-                </h5>
+                {/* Paso 5: Imágenes */}
+                {currentStep === 5 && (
+                  <>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-images me-2"></i>
+                      Imágenes
+                    </h5>
 
                 <Form.Group className="mb-3">
                   <Form.Label>Subir Imágenes</Form.Label>
@@ -1320,35 +1440,120 @@ const PropiedadesPanel = () => {
                   />
                 </Form.Group>
 
-                <div className="d-flex justify-content-end gap-2 mt-4">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setShowModal(false);
-                      setImagenesPrevias([]);
-                      imagenesPreviasRef.current = [];
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="dark"
-                    type="submit"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Spinner animation="border" size="sm" className="me-2" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-save me-2"></i>
-                        Guardar Propiedad
-                      </>
-                    )}
-                  </Button>
+                <div className="d-flex justify-content-between mt-4">
+                  {/* Botón Anterior */}
+                  {currentStep > 0 && (
+                    <Button
+                      variant="outline-secondary"
+                      onClick={() => {
+                        let prevStepIndex = currentStep - 1;
+                        
+                        // Si estamos en paso 5 y el tipo es terreno, ir al paso 3 (saltando el paso 4)
+                        if (currentStep === 5 && values.tipo === 'terreno') {
+                          prevStepIndex = 3;
+                        }
+                        
+                        setCurrentStep(Math.max(prevStepIndex, 0));
+                      }}
+                    >
+                      <i className="fas fa-arrow-left me-2"></i>
+                      Anterior
+                    </Button>
+                  )}
+
+                  {/* Espacio vacío si no hay botón anterior */}
+                  {currentStep === 0 && <div></div>}
+
+                  {/* Botón Siguiente o Guardar */}
+                  {currentStep < steps.length - 1 ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        // Validar campos del paso actual
+                        const currentStepConfig = steps[currentStep];
+                        const fieldsToValidate = typeof currentStepConfig.fields === 'function' 
+                          ? currentStepConfig.fields(values) 
+                          : currentStepConfig.fields;
+                        const requiredFields = typeof currentStepConfig.required === 'function' 
+                          ? currentStepConfig.required(values) 
+                          : currentStepConfig.required;
+
+                        // Verificar si hay errores en los campos requeridos del paso actual
+                        let hasErrors = false;
+                        for (const field of requiredFields) {
+                          if (errors[field]) {
+                            hasErrors = true;
+                            break;
+                          }
+                        }
+
+                        // Verificar si los campos requeridos están llenos
+                        for (const field of requiredFields) {
+                          if (!values[field] || values[field] === '') {
+                            hasErrors = true;
+                            break;
+                          }
+                        }
+
+                        if (hasErrors) {
+                          // Marcar como touched los campos del paso actual para mostrar errores
+                          const touchedFields = {};
+                          fieldsToValidate.forEach(field => {
+                            touchedFields[field] = true;
+                          });
+                          setTouched(touchedFields);
+                          toast.error('Por favor complete todos los campos requeridos');
+                        } else {
+                          // Avanzar al siguiente paso
+                          let nextStepIndex = currentStep + 1;
+                          
+                          // Saltar el paso 4 (Características Principales) si es terreno
+                          if (currentStep === 3 && values.tipo === 'terreno') {
+                            nextStepIndex = 5; // Ir directamente al paso 5 (Imágenes)
+                          }
+                          
+                          setCurrentStep(Math.min(nextStepIndex, steps.length - 1));
+                        }
+                      }}
+                    >
+                      Siguiente
+                      <i className="fas fa-arrow-right ms-2"></i>
+                    </Button>
+                  ) : (
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setShowModal(false);
+                          setImagenesPrevias([]);
+                          imagenesPreviasRef.current = [];
+                          resetWizard();
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        variant="dark"
+                        type="submit"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Spinner animation="border" size="sm" className="me-2" />
+                            Guardando...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-save me-2"></i>
+                            Guardar Propiedad
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
+                  </>
+                )}
               </Form>
             )}
           </Formik>
