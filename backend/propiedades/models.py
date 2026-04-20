@@ -165,7 +165,7 @@ class VideoPropiedad(models.Model):
     
     propiedad = models.ForeignKey(Propiedad, on_delete=models.CASCADE, related_name='videos')
     video = models.FileField('Video', upload_to='propiedades/videos/%Y/%m/', blank=True, null=True)
-    url_youtube = models.URLField('URL de YouTube', blank=True)
+    url_youtube = models.CharField('URL de YouTube', max_length=500, blank=True)
     titulo = models.CharField('Título', max_length=200, blank=True)
     miniatura = models.ImageField('Miniatura', upload_to='propiedades/miniaturas/%Y/%m/', blank=True)
     fecha_subida = models.DateTimeField('Fecha de Subida', auto_now_add=True)

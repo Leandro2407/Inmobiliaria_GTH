@@ -180,24 +180,40 @@ class PropiedadViewSet(viewsets.ModelViewSet):
         propiedad = self.get_object()
         
         video = request.FILES.get('video')
-        url_youtube = request.data.get('url_youtube')
+        url_youtube = request.data.get('url_youtube', '').strip()
+        titulo = request.data.get('titulo', '')
+        miniatura = request.FILES.get('miniatura')
         
+        # Validar que al menos uno esté presente
         if not video and not url_youtube:
             return Response(
                 {'error': 'Debe proporcionar un video o una URL de YouTube'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        video_obj = VideoPropiedad.objects.create(
-            propiedad=propiedad,
-            video=video if video else None,
-            url_youtube=url_youtube if url_youtube else '',
-            titulo=request.data.get('titulo', ''),
-            miniatura=request.FILES.get('miniatura')
-        )
+        # Log para debug
+        print(f"DEBUG: Subiendo video - video={video is not None}, url_youtube={url_youtube}, titulo={titulo}")
         
-        serializer = VideoPropiedadSerializer(video_obj, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        try:
+            # Crear el video directamente sin serializer para evitar validación duplicada
+            video_obj = VideoPropiedad.objects.create(
+                propiedad=propiedad,
+                video=video if video else None,
+                url_youtube=url_youtube if url_youtube else '',
+                titulo=titulo,
+                miniatura=miniatura if miniatura else None
+            )
+            print(f"DEBUG: Video creado con id={video_obj.id}")
+            
+            # Serializar para obtener URLs absolutas
+            serializer = VideoPropiedadSerializer(video_obj, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"ERROR: {str(e)}")
+            return Response(
+                {'error': f'Error al subir video: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class ImagenPropiedadViewSet(viewsets.ModelViewSet):

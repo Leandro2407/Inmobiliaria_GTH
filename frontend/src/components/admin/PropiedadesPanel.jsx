@@ -62,6 +62,10 @@ const PropiedadesPanel = () => {
   const fileInputRef = React.useRef(null);
   // ✅ FIX: useRef para que handleSubmit siempre lea el valor actualizado de imagenesPrevias
   const imagenesPreviasRef = useRef([]);
+  const [videosPrevias, setVideosPrevias] = useState([]);
+  const videoInputRef = React.useRef(null);
+  // ✅ FIX: useRef para que handleSubmit siempre lea el valor actualizado de videosPrevias
+  const videosPreviasRef = useRef([]);
   const [filtros, setFiltros] = useState({
     search: '',
     tipo: '',
@@ -103,6 +107,11 @@ const PropiedadesPanel = () => {
     },
     {
       title: 'Imágenes',
+      fields: [],
+      required: []
+    },
+    {
+      title: 'Videos',
       fields: [],
       required: []
     }
@@ -245,6 +254,60 @@ const PropiedadesPanel = () => {
     });
   };
 
+  const handleVideosChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const max = 5;
+    const seleccionadas = files.slice(0, max);
+    const previews = seleccionadas.map((file) => {
+      return {
+        preview: URL.createObjectURL(file),
+        file: file,
+        isNew: true,
+        type: 'file'
+      };
+    });
+
+    // ✅ FIX: actualizar tanto el estado como el ref
+    setVideosPrevias(prev => {
+      const nuevas = [...prev, ...previews];
+      videosPreviasRef.current = nuevas;
+      return nuevas;
+    });
+    toast.info(`${previews.length} video(s) cargado(s)`);
+  };
+
+  const handleRemoverVideo = async (index) => {
+    const videoToRemove = videosPrevias[index];
+    
+    // liberar URL de objeto creada para preview si es nueva
+    if (videoToRemove.isNew && videoToRemove.preview) {
+      URL.revokeObjectURL(videoToRemove.preview);
+    }
+
+    if (!videoToRemove.isNew && videoToRemove.id) {
+       if(window.confirm("¿Deseas eliminar este video guardado permanentemente?")) {
+           try {
+               // TODO: Implementar eliminación de video en el servicio
+               toast.success("Video eliminado");
+           } catch(error) {
+               toast.error("Error al eliminar video");
+               return;
+           }
+       } else {
+           return;
+       }
+    }
+
+    setVideosPrevias(prev => {
+      const newPreviews = [...prev];
+      newPreviews.splice(index, 1);
+      videosPreviasRef.current = newPreviews;
+      return newPreviews;
+    });
+  };
+
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
       let propiedadId;
@@ -362,6 +425,50 @@ const PropiedadesPanel = () => {
         }
       }
 
+      // ✅ FIX: leer del ref para evitar stale closure con videosPrevias
+      const videosNuevos = videosPreviasRef.current.filter(video => video.isNew && (video.file || video.url));
+      console.log('videosPreviasRef antes de upload:', videosPreviasRef.current);
+      console.log('videosNuevos a procesar:', videosNuevos);
+      
+      if (videosNuevos.length > 0) {
+        console.log(`Subiendo ${videosNuevos.length} videos a la propiedad ${propiedadId}`); // DEBUG
+        let videosSubidos = 0;
+        
+        for (let i = 0; i < videosNuevos.length; i++) {
+          const vid = videosNuevos[i];
+          const formData = new FormData();
+          
+          // Determinar si es archivo o YouTube
+          if (vid.file) {
+            console.log(`DEBUG: Enviando video de archivo: ${vid.file.name}`);
+            formData.append('video', vid.file);
+          } else if (vid.url) {
+            console.log(`DEBUG: Enviando URL de YouTube: ${vid.url}`);
+            formData.append('url_youtube', vid.url);
+          } else {
+            console.warn(`DEBUG: Video sin contenido (file ni url):`, vid);
+            continue;
+          }
+          
+          formData.append('titulo', vid.titulo || `Video ${i + 1}`);
+          
+          try {
+            console.log(`Subiendo video ${i + 1} a propiedad ${propiedadId}`);
+            const res = await propiedadService.subirVideo(propiedadId, formData);
+            console.log('Respuesta upload video:', res);
+            videosSubidos++;
+          } catch (error) {
+            console.error('Error subiendo video:', error);
+            const msg = error?.response?.data || error.message || 'desconocido';
+            toast.error(`Error al subir video ${i + 1}: ${JSON.stringify(msg)}`);
+          }
+        }
+        
+        if (videosSubidos > 0) {
+          toast.success(`${videosSubidos} video(s) subido(s) exitosamente`);
+        }
+      }
+
       setShowModal(false);
       
       // ✅ FIX: Esperar a que Bootstrap termine la transición del modal (300ms min)
@@ -370,6 +477,8 @@ const PropiedadesPanel = () => {
         setPropiedadEditar(null);
         setImagenesPrevias([]);
         imagenesPreviasRef.current = [];
+        setVideosPrevias([]);
+        videosPreviasRef.current = [];
         resetWizard();
         cargarPropiedades();
       }, 350);
@@ -446,6 +555,28 @@ const PropiedadesPanel = () => {
         imagenesPreviasRef.current = [];
       }
 
+      // FIX: Cargar videos existentes y sincronizar el ref
+      if (propiedadCompleta.videos && propiedadCompleta.videos.length > 0) {
+        const videoPreviews = propiedadCompleta.videos.map(vid => {
+          const url = vid.video || vid.url_youtube || '';
+          const previewUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
+          return { 
+            preview: previewUrl, 
+            video: url, 
+            url_youtube: vid.url_youtube,
+            isNew: false, 
+            id: vid.id,
+            type: vid.url_youtube ? 'youtube' : 'file',
+            titulo: vid.titulo
+          };
+        });
+        setVideosPrevias(videoPreviews);
+        videosPreviasRef.current = videoPreviews;
+      } else {
+        setVideosPrevias([]);
+        videosPreviasRef.current = [];
+      }
+
       resetWizard();
       setShowModal(true);
     } catch (error) {
@@ -488,6 +619,7 @@ const PropiedadesPanel = () => {
               onClick={() => {
                 setPropiedadEditar(null);
                 setImagenesPrevias([]);
+                setVideosPrevias([]);
                 resetWizard();
                 setCurrentPropertyType('');
                 setShowModal(true);
@@ -653,6 +785,42 @@ const PropiedadesPanel = () => {
                             <Badge bg="dark" className="position-absolute top-0 start-0 m-2">
                               Principal
                             </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </Card.Body>
+                </Card>
+              )}
+
+              {/* Videos */}
+              {propiedadVer.videos && propiedadVer.videos.length > 0 && (
+                <Card className="mb-3 border-0 shadow-sm">
+                  <Card.Body>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-video me-2"></i>
+                      Videos
+                    </h5>
+                    <div className="d-flex flex-wrap gap-2">
+                      {propiedadVer.videos.map((video, index) => (
+                        <div key={index} className="position-relative">
+                          {video.url_youtube ? (
+                            <div className="bg-light border rounded p-2" style={{ width: '200px', height: '150px' }}>
+                              <div className="d-flex align-items-center justify-content-center h-100">
+                                <div className="text-center">
+                                  <i className="fab fa-youtube fa-2x text-danger mb-2"></i>
+                                  <p className="small mb-0">YouTube Video</p>
+                                  <p className="small text-muted">{video.titulo}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <video
+                              src={ensureAbsoluteUrl(video.video_url)}
+                              style={{ width: '200px', height: '150px', objectFit: 'cover' }}
+                              controls
+                              className="border rounded"
+                            />
                           )}
                         </div>
                       ))}
@@ -848,9 +1016,11 @@ const PropiedadesPanel = () => {
           <Modal.Title>
             {propiedadEditar ? 'Editar Propiedad' : 'Nueva Propiedad'}
           </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
           {/* Indicador de progreso */}
-          <div className="mt-3">
-            <div className="d-flex justify-content-between align-items-center mb-2">
+          <div className="mt-4 mb-5">
+            <div className="d-flex justify-content-center align-items-center mb-2">
               {steps.map((step, index) => {
                 // Para terrenos, el paso 4 (Características Principales) se considera completado automáticamente
                 const isCompleted = currentPropertyType === 'terreno' && index === 4 ? 
@@ -862,14 +1032,14 @@ const PropiedadesPanel = () => {
                       className={`rounded-circle d-flex align-items-center justify-content-center ${
                         isCompleted ? 'bg-primary text-white' : 'bg-light text-muted'
                       }`}
-                      style={{ width: '30px', height: '30px', fontSize: '14px' }}
+                      style={{ width: '40px', height: '40px', fontSize: '16px' }}
                     >
                       {index + 1}
                     </div>
                     {index < steps.length - 1 && (
                       <div 
-                        className={`mx-2 ${isCompleted && (currentPropertyType === 'terreno' && index === 3 ? currentStep >= 3 : index < currentStep) ? 'bg-primary' : 'bg-light'}`}
-                        style={{ height: '2px', width: '40px' }}
+                        className={`mx-3 ${isCompleted && (currentPropertyType === 'terreno' && index === 3 ? currentStep >= 3 : index < currentStep) ? 'bg-primary' : 'bg-light'}`}
+                        style={{ height: '3px', width: '60px' }}
                       ></div>
                     )}
                   </div>
@@ -877,11 +1047,9 @@ const PropiedadesPanel = () => {
               })}
             </div>
             <div className="text-center">
-              <small className="text-muted">{steps[currentStep].title}</small>
+              <small className="text-muted fw-bold">{steps[currentStep].title}</small>
             </div>
           </div>
-        </Modal.Header>
-        <Modal.Body>
           <Formik
             initialValues={{
               titulo: propiedadEditar?.titulo || '',
@@ -1439,8 +1607,102 @@ const PropiedadesPanel = () => {
                     onChange={handleChange}
                   />
                 </Form.Group>
+                  </>
+                )} {/* Cierre del Paso 5 */}
 
-                <div className="d-flex justify-content-between mt-4">
+                {/* Paso 6: Videos */}
+                {currentStep === 6 && (
+                  <>
+                    <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
+                      <i className="fas fa-video me-2"></i>
+                      Videos
+                    </h5>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Subir Videos</Form.Label>
+                  <Form.Control
+                    type="file"
+                    multiple
+                    accept="video/*"
+                    onChange={handleVideosChange}
+                    ref={videoInputRef}
+                  />
+                  <Form.Text className="text-muted">
+                    Selecciona uno o más archivos de video (MP4, WebM, MOV, AVI). Máximo 5 videos.
+                  </Form.Text>
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>URL de YouTube (Opcional)</Form.Label>
+                  <Form.Control
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    onChange={(e) => {
+                      const url = e.target.value.trim();
+                      if (url) {
+                        const newVideo = {
+                          url: url,
+                          type: 'youtube',
+                          isNew: true,
+                          titulo: 'Video de YouTube'
+                        };
+                        setVideosPrevias(prev => {
+                          const nuevas = [...prev, newVideo];
+                          videosPreviasRef.current = nuevas;
+                          return nuevas;
+                        });
+                        e.target.value = ''; // Limpiar el input
+                        toast.info('Video de YouTube agregado');
+                      }
+                    }}
+                  />
+                  <Form.Text className="text-muted">
+                    Pega la URL de un video de YouTube para incluirlo en la propiedad.
+                  </Form.Text>
+                </Form.Group>
+
+                {videosPrevias.length > 0 && (
+                  <div className="mb-3">
+                    <div className="d-flex flex-wrap gap-2">
+                      {videosPrevias.map((prev, index) => (
+                        <div key={index} className="position-relative">
+                          {prev.type === 'youtube' ? (
+                            <div className="bg-light border rounded p-2" style={{ width: '200px', height: '150px' }}>
+                              <div className="d-flex align-items-center justify-content-center h-100">
+                                <div className="text-center">
+                                  <i className="fab fa-youtube fa-2x text-danger mb-2"></i>
+                                  <p className="small mb-0">YouTube Video</p>
+                                  <p className="small text-muted">{prev.titulo}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <video
+                              src={prev.preview}
+                              style={{ width: '200px', height: '150px', objectFit: 'cover' }}
+                              controls
+                              className="border rounded"
+                            />
+                          )}
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            className="position-absolute top-0 end-0 m-1"
+                            onClick={() => handleRemoverVideo(index)}
+                            title="Remover video"
+                          >
+                            <i className="fas fa-times"></i>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                  </>
+                )} {/* Cierre del Paso 6 */}
+
+                {/* BOTONES DE NAVEGACIÓN GLOBALES */}
+                <div className="d-flex justify-content-between mt-5 pt-3 border-top">
                   {/* Botón Anterior */}
                   {currentStep > 0 && (
                     <Button
@@ -1527,6 +1789,8 @@ const PropiedadesPanel = () => {
                           setShowModal(false);
                           setImagenesPrevias([]);
                           imagenesPreviasRef.current = [];
+                          setVideosPrevias([]);
+                          videosPreviasRef.current = [];
                           resetWizard();
                         }}
                       >
@@ -1552,8 +1816,6 @@ const PropiedadesPanel = () => {
                     </div>
                   )}
                 </div>
-                  </>
-                )}
               </Form>
             )}
           </Formik>

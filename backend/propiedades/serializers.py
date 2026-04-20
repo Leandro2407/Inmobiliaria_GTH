@@ -19,10 +19,35 @@ class ImagenPropiedadSerializer(serializers.ModelSerializer):
         return None
 
 class VideoPropiedadSerializer(serializers.ModelSerializer):
+    video_url = serializers.SerializerMethodField(read_only=True)
+    miniatura_url = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = VideoPropiedad
-        fields = ['id', 'video', 'url_youtube', 'titulo', 'miniatura', 'fecha_subida']
-        read_only_fields = ['fecha_subida']
+        fields = ['id', 'video', 'video_url', 'url_youtube', 'titulo', 'miniatura', 'miniatura_url', 'fecha_subida']
+        read_only_fields = ['fecha_subida', 'video_url', 'miniatura_url']
+        extra_kwargs = {
+            'video': {'required': False, 'allow_null': True},
+            'url_youtube': {'required': False, 'allow_blank': True},
+            'titulo': {'required': False, 'allow_blank': True},
+            'miniatura': {'required': False, 'allow_null': True},
+        }
+
+    def get_video_url(self, obj):
+        if obj.video:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.video.url)
+            return obj.video.url
+        return None
+
+    def get_miniatura_url(self, obj):
+        if obj.miniatura:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.miniatura.url)
+            return obj.miniatura.url
+        return None
 
 
 class PropiedadSerializer(serializers.ModelSerializer):
