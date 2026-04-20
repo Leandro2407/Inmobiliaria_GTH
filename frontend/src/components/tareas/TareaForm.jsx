@@ -17,16 +17,16 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // 🔧 FUNCIÓN CORREGIDA: Obtener fecha actual en YYYY-MM-DD usando UTC
+  // 🔧 CORRECCIÓN: Obtener fecha actual SIN desfase horario
   const getTodayDate = () => {
     const today = new Date();
-    const year = today.getUTCFullYear();
-    const month = String(today.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(today.getUTCDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  // 🔧 Función para extraer fecha YYYY-MM-DD
+  // 🔧 Función para extraer fecha YYYY-MM-DD (misma que en TareaEdit)
   const extraerFechaYYYYMMDD = (fechaInput) => {
     if (!fechaInput) return '';
     
@@ -39,18 +39,18 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
     }
     
     if (fechaInput instanceof Date && !isNaN(fechaInput)) {
-      const year = fechaInput.getUTCFullYear();
-      const month = String(fechaInput.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(fechaInput.getUTCDate()).padStart(2, '0');
+      const year = fechaInput.getFullYear();
+      const month = String(fechaInput.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaInput.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
     
     try {
       const fechaObj = new Date(fechaInput);
       if (!isNaN(fechaObj)) {
-        const year = fechaObj.getUTCFullYear();
-        const month = String(fechaObj.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(fechaObj.getUTCDate()).padStart(2, '0');
+        const year = fechaObj.getFullYear();
+        const month = String(fechaObj.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaObj.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       }
     } catch (e) {}
@@ -71,7 +71,9 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
       });
       setErrors({});
     } else {
+      // 🔧 CORRECCIÓN: Usar la fecha actual correcta
       const today = getTodayDate();
+      console.log('📅 Fecha actual para nueva tarea:', today);
       setFormData(prev => ({
         ...prev,
         fecha: today
@@ -121,6 +123,7 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
     if (!formData.fecha) {
       newErrors.fecha = 'La fecha es requerida';
     } else {
+      // 🔧 CORRECCIÓN: Comparar como strings YYYY-MM-DD
       if (formData.fecha < today) {
         newErrors.fecha = `La fecha no puede ser en el pasado. Hoy es ${today}`;
       }
@@ -163,6 +166,7 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         empleados: formData.empleados
       };
       
+      console.log('📅 Creando tarea con fecha:', datosParaEnviar.fecha);
       await onSubmit(datosParaEnviar);
     } catch (error) {
       console.error('Error al procesar la tarea:', error);
@@ -223,6 +227,9 @@ const TareaForm = ({ tarea, onSubmit, onCancel, empleados }) => {
         <Form.Control.Feedback type="invalid">
           {errors.fecha}
         </Form.Control.Feedback>
+        <Form.Text className="text-muted">
+          Solo se permiten fechas desde hoy ({getTodayDate()}) en adelante
+        </Form.Text>
       </Form.Group>
 
       <div className="row mb-3">
