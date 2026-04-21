@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Alert } from 'react-bootstrap';
+import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
 import EmpleadoSelector from './EmpleadoSelector';
+import tareaService from '../../services/tareaService';
 
 const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
   const [formData, setFormData] = useState({
@@ -15,7 +16,7 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
   
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [fechaOriginalBackend, setFechaOriginalBackend] = useState('');
+  const [cargandoDatos, setCargandoDatos] = useState(false);
 
   const getTodayDate = () => {
     const today = new Date();
@@ -25,66 +26,61 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
     return `${year}-${month}-${day}`;
   };
 
-  useEffect(() => {
-    if (tarea && show) {
-      // 🔧 CORRECCIÓN: Ajustar la fecha según la diferencia
-      const ajustarFechaParaMostrar = (fechaBackend) => {
-        if (!fechaBackend) return '';
-        
-        // Extraer la fecha como string YYYY-MM-DD
-        let fechaStr = '';
-        if (typeof fechaBackend === 'string') {
-          const match = fechaBackend.match(/(\d{4}-\d{2}-\d{2})/);
-          if (match) fechaStr = match[1];
-        } else {
-          const d = new Date(fechaBackend);
-          fechaStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        }
-        
-        if (!fechaStr) return '';
-        
-        // Obtener fecha actual local
-        const hoy = getTodayDate();
-        
-        console.log('📅 Fecha backend:', fechaStr);
-        console.log('📅 Fecha actual:', hoy);
-        
-        // Si la fecha del backend es mayor que hoy (ej: 2026-04-17 vs hoy 2026-04-16)
-        if (fechaStr > hoy) {
-          // Restar 1 día
-          const [year, month, day] = fechaStr.split('-').map(Number);
-          const fechaObj = new Date(year, month - 1, day);
-          fechaObj.setDate(fechaObj.getDate() - 1);
-          const resultado = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth()+1).padStart(2,'0')}-${String(fechaObj.getDate()).padStart(2,'0')}`;
-          console.log('📅 Se resta 1 día:', resultado);
-          return resultado;
-        }
-        
-        // Si la fecha del backend es igual o menor a hoy, mostrarla tal cual
-        console.log('📅 Se muestra fecha original:', fechaStr);
-        return fechaStr;
-      };
+  // 🔧 FUNCIÓN SIMPLIFICADA: Solo extraer YYYY-MM-DD, sin restar días
+  const extraerFechaYYYYMMDD = (fechaBackend) => {
+    if (!fechaBackend) return '';
+    
+    // Si es string YYYY-MM-DD, devolverlo directamente
+    if (typeof fechaBackend === 'string' && fechaBackend.match(/^\d{4}-\d{2}-\d{2}/)) {
+      const match = fechaBackend.match(/(\d{4}-\d{2}-\d{2})/);
+      return match ? match[1] : '';
+    }
+    
+    // Si es objeto Date o string ISO
+    const fechaObj = new Date(fechaBackend);
+    if (!isNaN(fechaObj)) {
+      const year = fechaObj.getFullYear();
+      const month = String(fechaObj.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    return '';
+  };
+
+  const cargarDatosActualizados = async (tareaId) => {
+    if (!tareaId) return;
+    
+    setCargandoDatos(true);
+    try {
+      const response = await tareaService.getTarea(tareaId);
+      const tareaActualizada = response.data;
       
-      // Guardar fecha original
-      let fechaOriginal = '';
-      if (tarea.fecha) {
-        const match = String(tarea.fecha).match(/(\d{4}-\d{2}-\d{2})/);
-        if (match) fechaOriginal = match[1];
-      }
-      setFechaOriginalBackend(fechaOriginal);
+      // 🔧 Usar la fecha directamente del backend, sin modificaciones
+      const fechaParaMostrar = extraerFechaYYYYMMDD(tareaActualizada.fecha);
       
-      // Ajustar fecha para mostrar
-      const fechaParaMostrar = ajustarFechaParaMostrar(tarea.fecha);
+      console.log('📅 Fecha backend:', tareaActualizada.fecha);
+      console.log('📅 Fecha a mostrar (sin modificar):', fechaParaMostrar);
       
       setFormData({
-        nombre: tarea.nombre || '',
-        descripcion: tarea.descripcion || '',
+        nombre: tareaActualizada.nombre || '',
+        descripcion: tareaActualizada.descripcion || '',
         fecha: fechaParaMostrar,
-        hora_inicio: tarea.hora_inicio || '',
-        hora_fin: tarea.hora_fin || '',
-        prioridad: tarea.prioridad || 'media',
-        empleados: tarea.empleados || []
+        hora_inicio: tareaActualizada.hora_inicio || '',
+        hora_fin: tareaActualizada.hora_fin || '',
+        prioridad: tareaActualizada.prioridad || 'media',
+        empleados: tareaActualizada.empleados || []
       });
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+    } finally {
+      setCargandoDatos(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tarea && show) {
+      cargarDatosActualizados(tarea.id);
       setErrors({});
     }
   }, [tarea, show]);
@@ -106,11 +102,11 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
 
     if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es requerido';
     
-    if (!fechaOriginalBackend) {
+    if (!formData.fecha) {
       newErrors.fecha = 'La fecha es requerida';
     } else {
-      if (fechaOriginalBackend < today) {
-        newErrors.fecha = `No se puede editar una tarea con fecha anterior a hoy (${today})`;
+      if (formData.fecha < today) {
+        newErrors.fecha = `La fecha no puede ser en el pasado. Hoy es ${today}`;
       }
     }
     
@@ -140,13 +136,14 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
       const dataToSend = {
         nombre: formData.nombre,
         descripcion: formData.descripcion,
-        fecha: fechaOriginalBackend,
+        fecha: formData.fecha,
         hora_inicio: formData.hora_inicio,
         hora_fin: formData.hora_fin || null,
         prioridad: formData.prioridad,
         empleados: formData.empleados
       };
       
+      console.log('📤 Enviando al backend:', dataToSend);
       await onUpdate(dataToSend);
       onHide();
     } catch (error) {
@@ -165,109 +162,122 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
   return (
     <Modal show={show} onHide={handleClose} size="lg">
       <Modal.Header closeButton className="bg-dark text-white">
-        <Modal.Title><i className="fas fa-edit me-2"></i>Editar Tarea</Modal.Title>
+        <Modal.Title>
+          <i className="fas fa-edit me-2"></i>
+          Editar Tarea
+          {cargandoDatos && <Spinner animation="border" size="sm" className="ms-2" />}
+        </Modal.Title>
       </Modal.Header>
       
       <Form onSubmit={handleSubmit}>
         <Modal.Body>
           {errors.submit && <Alert variant="danger">{errors.submit}</Alert>}
-
-          <Form.Group className="mb-3">
-            <Form.Label>Nombre de la tarea *</Form.Label>
-            <Form.Control
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              isInvalid={!!errors.nombre}
-            />
-            <Form.Control.Feedback type="invalid">{errors.nombre}</Form.Control.Feedback>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Descripción</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              name="descripcion"
-              value={formData.descripcion}
-              onChange={handleChange}
-            />
-          </Form.Group>
-
-          <div className="row">
-            <div className="col-md-6">
+          
+          {cargandoDatos ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" variant="dark" />
+              <p className="mt-2 text-muted">Cargando datos actualizados...</p>
+            </div>
+          ) : (
+            <>
               <Form.Group className="mb-3">
-                <Form.Label>Fecha *</Form.Label>
+                <Form.Label>Nombre de la tarea *</Form.Label>
                 <Form.Control
-                  type="date"
-                  name="fecha"
-                  value={formData.fecha}
+                  type="text"
+                  name="nombre"
+                  value={formData.nombre}
                   onChange={handleChange}
-                  isInvalid={!!errors.fecha}
-                  min={getTodayDate()}
+                  isInvalid={!!errors.nombre}
                 />
-                <Form.Control.Feedback type="invalid">{errors.fecha}</Form.Control.Feedback>
+                <Form.Control.Feedback type="invalid">{errors.nombre}</Form.Control.Feedback>
               </Form.Group>
-            </div>
-            
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Hora de inicio *</Form.Label>
-                <Form.Control
-                  type="time"
-                  name="hora_inicio"
-                  value={formData.hora_inicio}
-                  onChange={handleChange}
-                  isInvalid={!!errors.hora_inicio}
-                />
-                <Form.Control.Feedback type="invalid">{errors.hora_inicio}</Form.Control.Feedback>
-              </Form.Group>
-            </div>
-          </div>
 
-          <div className="row">
-            <div className="col-md-6">
               <Form.Group className="mb-3">
-                <Form.Label>Hora de fin estimada</Form.Label>
+                <Form.Label>Descripción</Form.Label>
                 <Form.Control
-                  type="time"
-                  name="hora_fin"
-                  value={formData.hora_fin}
+                  as="textarea"
+                  rows={3}
+                  name="descripcion"
+                  value={formData.descripcion}
                   onChange={handleChange}
-                  isInvalid={!!errors.hora_fin}
                 />
-                <Form.Control.Feedback type="invalid">{errors.hora_fin}</Form.Control.Feedback>
               </Form.Group>
-            </div>
-            
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Prioridad</Form.Label>
-                <Form.Select name="prioridad" value={formData.prioridad} onChange={handleChange}>
-                  <option value="baja">Baja</option>
-                  <option value="media">Media</option>
-                  <option value="alta">Alta</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
 
-          <div className="mb-3">
-            <EmpleadoSelector
-              empleados={empleados}
-              selectedEmpleados={formData.empleados}
-              onChange={handleEmpleadosChange}
-              isInvalid={!!errors.empleados}
-            />
-          </div>
+              <div className="row">
+                <div className="col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Fecha *</Form.Label>
+                    <Form.Control
+                      type="date"
+                      name="fecha"
+                      value={formData.fecha}
+                      onChange={handleChange}
+                      isInvalid={!!errors.fecha}
+                      min={getTodayDate()}
+                    />
+                    <Form.Control.Feedback type="invalid">{errors.fecha}</Form.Control.Feedback>
+                  </Form.Group>
+                </div>
+                
+                <div className="col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Hora de inicio *</Form.Label>
+                    <Form.Control
+                      type="time"
+                      name="hora_inicio"
+                      value={formData.hora_inicio}
+                      onChange={handleChange}
+                      isInvalid={!!errors.hora_inicio}
+                    />
+                    <Form.Control.Feedback type="invalid">{errors.hora_inicio}</Form.Control.Feedback>
+                  </Form.Group>
+                </div>
+              </div>
+
+              <div className="row">
+                <div className="col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Hora de fin estimada</Form.Label>
+                    <Form.Control
+                      type="time"
+                      name="hora_fin"
+                      value={formData.hora_fin}
+                      onChange={handleChange}
+                      isInvalid={!!errors.hora_fin}
+                    />
+                    <Form.Control.Feedback type="invalid">{errors.hora_fin}</Form.Control.Feedback>
+                  </Form.Group>
+                </div>
+                
+                <div className="col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Prioridad</Form.Label>
+                    <Form.Select name="prioridad" value={formData.prioridad} onChange={handleChange}>
+                      <option value="baja">Baja</option>
+                      <option value="media">Media</option>
+                      <option value="alta">Alta</option>
+                    </Form.Select>
+                  </Form.Group>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <EmpleadoSelector
+                  empleados={empleados}
+                  selectedEmpleados={formData.empleados}
+                  onChange={handleEmpleadosChange}
+                  isInvalid={!!errors.empleados}
+                />
+              </div>
+            </>
+          )}
         </Modal.Body>
 
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={handleClose} disabled={loading}>
+          <Button variant="outline-secondary" onClick={handleClose} disabled={loading || cargandoDatos}>
             Cancelar
           </Button>
-          <Button variant="dark" type="submit" disabled={loading}>
+          <Button variant="dark" type="submit" disabled={loading || cargandoDatos}>
             {loading ? 'Actualizando...' : 'Actualizar Tarea'}
           </Button>
         </Modal.Footer>
