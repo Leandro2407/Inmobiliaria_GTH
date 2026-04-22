@@ -6,16 +6,175 @@ import propiedadService from '../../services/propiedadService';
 import SelectorPropiedadContratoModal from './SelectorPropiedadContratoModal';
 
 const generarPDFContrato = (contrato, cliente, propiedad) => {
-  // ... (la misma función que ya tenías, se omite por brevedad pero debe estar igual)
-  const htmlContent = `<!DOCTYPE html>...`; // Mantén tu función de PDF igual
+  const formatDate = (d) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+  
+  const formatCurrency = (v) => {
+    if (!v) return '$ 0,00';
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v);
+  };
 
-  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  if (!win) {
-    toast.error('No se pudo abrir la ventana de impresión. Verifica que el navegador no bloquee popups.');
+  const hoy = formatDate(new Date());
+  const tipoLabel = contrato.tipo === 'alquiler' ? 'Alquiler' : 'Venta';
+  const clienteNombre = cliente?.nombre_completo || `${cliente?.nombre || ''} ${cliente?.apellido || ''}`.trim() || '—';
+  const propDireccion = propiedad?.direccion || '—';
+  const propCiudad = propiedad?.ciudad || '—';
+  const propTipo = (propiedad?.tipo || '').charAt(0).toUpperCase() + (propiedad?.tipo || '').slice(1);
+
+  const fechasSection = contrato.tipo === 'alquiler' && contrato.fecha_inicio ? `
+    <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;width:40%">Fecha de Inicio</td>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${formatDate(contrato.fecha_inicio)}</td>
+  </tr>
+  ${contrato.fecha_fin ? `
+    <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Fecha de Fin</td>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${formatDate(contrato.fecha_fin)}</td>
+  </tr>` : ''}
+  ` : '';
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Contrato de ${tipoLabel} - ${clienteNombre}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;600&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Source Sans 3', sans-serif; color: #1a1a2e; background: #fff; padding: 40px; max-width: 800px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 3px solid #1a1a2e; }
+    .logo-area h1 { font-family: 'Libre Baskerville', serif; font-size: 28px; color: #1a1a2e; }
+    .logo-area p { color: #666; font-size: 14px; margin-top: 4px; }
+    .doc-info { text-align: right; }
+    .doc-info .doc-type { font-family: 'Libre Baskerville', serif; font-size: 18px; font-weight: 700; color: #1a1a2e; }
+    .doc-info .doc-date { color: #666; font-size: 13px; margin-top: 4px; }
+    .section { margin-bottom: 28px; }
+    .section-title { font-family: 'Libre Baskerville', serif; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #1a1a2e; background: #f5f5f5; padding: 8px 12px; border-left: 4px solid #1a1a2e; margin-bottom: 16px; }
+    table.data-table { width: 100%; border-collapse: collapse; }
+    table.data-table td { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
+    table.data-table td:first-child { color: #666; width: 40%; }
+    table.data-table td:last-child { font-weight: 600; }
+    .monto-box { background: #1a1a2e; color: #fff; border-radius: 8px; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .monto-box .label { font-size: 13px; opacity: 0.8; }
+    .monto-box .valor { font-family: 'Libre Baskerville', serif; font-size: 26px; font-weight: 700; }
+    .comision-row { display: flex; gap: 16px; }
+    .comision-item { flex: 1; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 14px 18px; }
+    .comision-item .ci-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .comision-item .ci-value { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+    .descripcion-box { background: #f9f9f9; border-left: 3px solid #ccc; padding: 14px 18px; border-radius: 0 6px 6px 0; font-size: 14px; color: #444; line-height: 1.6; }
+    .firmas { display: flex; gap: 48px; margin-top: 48px; padding-top: 32px; border-top: 2px solid #eee; }
+    .firma-block { flex: 1; text-align: center; }
+    .firma-linea { border-top: 1px solid #333; padding-top: 8px; margin-top: 56px; font-size: 13px; color: #444; }
+    .estado-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #d4edda; color: #155724; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #eee; text-align: center; font-size: 11px; color: #aaa; }
+    @media print {
+      body { padding: 20px; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-area">
+      <h1>Inmobiliaria</h1>
+      <p>Sistema de Gestión de Propiedades</p>
+    </div>
+    <div class="doc-info">
+      <div class="doc-type">Contrato de ${tipoLabel}</div>
+      <div class="doc-date">Fecha de emisión: ${hoy}</div>
+      <div class="doc-date">Estado: <span class="estado-badge">${(contrato.estado || 'activo').charAt(0).toUpperCase() + (contrato.estado || 'activo').slice(1)}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Datos del Cliente</div>
+    <table class="data-table">
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;width:40%">Nombre Completo</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${clienteNombre}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">DNI</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${cliente?.dni || '—'}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Email</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${cliente?.email || '—'}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Teléfono</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${cliente?.telefono || '—'}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Domicilio</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${cliente?.domicilio || '—'}</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Datos de la Propiedad</div>
+    <table class="data-table">
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;width:40%">Tipo de Propiedad</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${propTipo}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Dirección</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${propDireccion}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Ciudad</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${propCiudad}</td></tr>
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666">Barrio / Zona</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${propiedad?.barrio || '—'} / ${propiedad?.zona || '—'}</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Condiciones del Contrato</div>
+    <table class="data-table">
+      <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;width:40%">Tipo de Contrato</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">${tipoLabel}</td></tr>
+      ${fechasSection}
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Valores Económicos</div>
+    <div class="monto-box">
+      <div><div class="label">Monto del Contrato</div></div>
+      <div class="valor">${formatCurrency(contrato.monto)}</div>
+    </div>
+    <div class="comision-row">
+      <div class="comision-item">
+        <div class="ci-label">Porcentaje de Comisión</div>
+        <div class="ci-value">${contrato.porcentaje_comision ? contrato.porcentaje_comision + '%' : '—'}</div>
+      </div>
+      <div class="comision-item">
+        <div class="ci-label">Comisión Calculada</div>
+        <div class="ci-value">${formatCurrency(contrato.comision)}</div>
+      </div>
+    </div>
+  </div>
+
+  ${contrato.descripcion ? `
+  <div class="section">
+    <div class="section-title">Descripción / Observaciones</div>
+    <div class="descripcion-box">${contrato.descripcion}</div>
+  </div>
+  ` : ''}
+
+  <div class="firmas">
+    <div class="firma-block">
+      <div class="firma-linea">Firma del Cliente<br/><strong>${clienteNombre}</strong></div>
+    </div>
+    <div class="firma-block">
+      <div class="firma-linea">Firma del Agente<br/><strong>Agente Inmobiliario</strong></div>
+    </div>
+    <div class="firma-block">
+      <div class="firma-linea">Sello de la Inmobiliaria</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Documento generado el ${hoy} · Sistema de Gestión Inmobiliaria
+  </div>
+
+  <script>
+    window.onload = function() { 
+      window.print(); 
+    };
+  </script>
+</body>
+</html>`;
+
+  // Abrir una nueva ventana con el contenido HTML
+  const ventanaImpresion = window.open('', '_blank');
+  if (!ventanaImpresion) {
+    toast.error('No se pudo abrir la ventana. Por favor, permite las ventanas emergentes (pop-ups) para este sitio.');
+    return;
   }
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  
+  ventanaImpresion.document.write(htmlContent);
+  ventanaImpresion.document.close();
+  ventanaImpresion.focus();
+  // La impresión se disparará automáticamente cuando la ventana cargue (por el script)
 };
 
 const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
@@ -115,7 +274,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     }
   };
 
-  // Efecto para cargar datos iniciales
   useEffect(() => {
     if (show) {
       cargarPropiedades();
@@ -140,7 +298,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         if (contrato.propiedad_info) {
           setPropiedadSeleccionada(contrato.propiedad_info);
         }
-        // Si es edición y ya tiene propiedad, no abrir selector
       } else {
         setFormData({
           tipo: 'alquiler',
@@ -154,8 +311,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
           descripcion: '',
         });
         setPropiedadSeleccionada(null);
-        // 🔧 NUEVO: Para nuevo contrato, abrir el selector de propiedad inmediatamente
-        // y NO mostrar el modal de contrato hasta que se seleccione una propiedad
         setShowSelectorPropiedad(true);
       }
       setErrors({});
@@ -197,7 +352,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       comision: '',
     }));
     
-    // Cerrar selector de propiedad
     setShowSelectorPropiedad(false);
     
     if (precio) {
@@ -207,9 +361,7 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
     }
   };
 
-  // 🔧 NUEVO: Volver al selector de propiedad - cierra el modal de contrato y abre solo el selector
   const handleVolverSeleccionPropiedad = () => {
-    // Limpiar la propiedad seleccionada
     setPropiedadSeleccionada(null);
     setFormData(prev => ({
       ...prev,
@@ -219,7 +371,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
       porcentaje_comision: '',
       comision: '',
     }));
-    // Abrir solo el selector de propiedad
     setShowSelectorPropiedad(true);
   };
 
@@ -318,11 +469,17 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
   };
 
   const handleDescargarPDF = () => {
-    if (!cliente) { toast.error('Falta información del cliente'); return; }
+    if (!cliente) {
+      toast.error('Falta información del cliente');
+      return;
+    }
+    if (!propiedadSeleccionada) {
+      toast.error('Falta información de la propiedad');
+      return;
+    }
     generarPDFContrato(formData, cliente, propiedadSeleccionada);
   };
 
-  // Si no hay cliente, mostrar error
   if (show && (!cliente || !cliente.id)) {
     return (
       <Modal show={show} onHide={onHide} size="lg">
@@ -344,11 +501,9 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
 
   return (
     <>
-      {/* Modal de selección de propiedad - SOLO este visible cuando showSelectorPropiedad = true */}
       <SelectorPropiedadContratoModal
         show={showSelectorPropiedad}
         onHide={() => {
-          // Si se cierra el selector sin seleccionar propiedad, cerrar todo el flujo
           setShowSelectorPropiedad(false);
           onHide();
         }}
@@ -358,7 +513,6 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
         onActualizarPropiedades={cargarPropiedades}
       />
 
-      {/* Modal de contrato - SOLO visible cuando hay propiedad seleccionada y NO estamos en el selector */}
       <Modal show={show && !showSelectorPropiedad && propiedadSeleccionada !== null} onHide={onHide} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>
@@ -374,21 +528,8 @@ const ContratoForm = ({ show, onHide, cliente, contrato, onSuccess }) => {
               </Alert>
             )}
 
-            {esEdicion && (
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Tipo de Contrato *</Form.Label>
-                    <Form.Select name="tipo" value={formData.tipo} onChange={handleChange}>
-                      <option value="alquiler">Alquiler</option>
-                      <option value="venta">Venta</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
-            )}
+          
 
-            {/* Resumen de la propiedad seleccionada con botón "Volver a seleccionar propiedad" */}
             <div className="mb-4 p-3 border rounded bg-light">
               <div className="d-flex justify-content-between align-items-start mb-2">
                 <h6 className="mb-0 text-primary">
