@@ -123,49 +123,89 @@ class RegisterSerializer(serializers.ModelSerializer):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Serializer personalizado para JWT que incluye datos del usuario.
+    Permite login con username o email.
     """
     
+    email = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        
+
         # Agregar datos personalizados al token
         token['email'] = user.email
         token['username'] = user.username
         token['rol'] = user.rol
         token['full_name'] = user.get_full_name()
-        
+
         return token
-    
+
     def validate(self, attrs):
-        data = super().validate(attrs)
-        
+        # Buscar usuario por email o username
+        username_or_email = attrs.get('email')
+        password = attrs.get('password')
+
+        if not username_or_email or not password:
+            raise serializers.ValidationError('Debe proporcionar usuario/email y contraseña.')
+
+        # Intentar encontrar usuario por email primero
+        user = None
+        try:
+            user = Usuario.objects.get(email=username_or_email)
+        except Usuario.DoesNotExist:
+            # Si no es email, buscar por username
+            try:
+                user = Usuario.objects.get(username=username_or_email)
+            except Usuario.DoesNotExist:
+                raise serializers.ValidationError('Credenciales inválidas.')
+
+        # Verificar contraseña
+        if not user.check_password(password):
+            raise serializers.ValidationError('Credenciales inválidas.')
+
+        if not user.is_active:
+            raise serializers.ValidationError('La cuenta está desactivada.')
+
+        # Actualizar last_login
+        from django.utils import timezone
+        user.last_login = timezone.now()
+        user.save(update_fields=['last_login'])
+
+        # Generar token
+        refresh = self.get_token(user)
+
+        data = {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+
         # Agregar datos extra a la respuesta
         data['user'] = {
-            'id': self.user.id,
-            'email': self.user.email,
-            'username': self.user.username,
-            'full_name': self.user.get_full_name(),
-            'rol': self.user.rol,
-            'is_active': self.user.is_active,
-            'email_verified': self.user.email_verified,
-            'foto_perfil': self.user.foto_perfil.url if self.user.foto_perfil else None,
-            
+            'id': user.id,
+            'email': user.email,
+            'username': user.username,
+            'full_name': user.get_full_name(),
+            'rol': user.rol,
+            'is_active': user.is_active,
+            'email_verified': user.email_verified,
+            'foto_perfil': user.foto_perfil.url if user.foto_perfil else None,
+
             # --- Campos Agregados ---
-            'first_name': self.user.first_name,
-            'last_name': self.user.last_name,
-            'telefono': self.user.telefono,
-            'dni': self.user.dni,
-            'fecha_nacimiento': self.user.fecha_nacimiento,
-            'ciudad': self.user.ciudad,
-            'barrio': self.user.barrio,
-            'calle': self.user.calle,
-            'numeracion': self.user.numeracion,
-            'puesto': self.user.puesto,
-            'ciudad_interes': self.user.ciudad_interes,
-            'intereses': self.user.intereses,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'telefono': user.telefono,
+            'dni': user.dni,
+            'fecha_nacimiento': user.fecha_nacimiento,
+            'ciudad': user.ciudad,
+            'barrio': user.barrio,
+            'calle': user.calle,
+            'numeracion': user.numeracion,
+            'puesto': user.puesto,
+            'ciudad_interes': user.ciudad_interes,
+            'intereses': user.intereses,
         }
-        
+
         return data
 
 

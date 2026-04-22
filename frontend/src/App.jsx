@@ -17,8 +17,7 @@ import Contact from './pages/Contact';
 import Nosotros from './pages/Nosotros';
 import Dashboard from './pages/admin/Dashboard';
 import NotFound from './pages/NotFound';
-// --- ¡IMPORTACIÓN AÑADIDA! ---¿
-// Asumo que tu archivo Perfil.jsx está en 'pages/' como los demás
+import ResetPassword from './pages/ResetPassword';
 import Perfil from './pages/Perfil'; 
 import Tareas from './pages/admin/Tareas';
 import SeguimientoClientesPanel from './pages/admin/SeguimientoClientesPanel';
@@ -123,6 +122,8 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
 
               {/* 404 Not Found */}
               <Route path="*" element={<NotFound />} />

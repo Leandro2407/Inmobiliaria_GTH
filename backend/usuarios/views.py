@@ -6,6 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
+from django.core.mail import send_mail
+from django.conf import settings
 import secrets
 
 from .serializers import (
@@ -158,7 +160,20 @@ class PasswordResetRequestView(APIView):
                 expires_at=expires_at
             )
             
-            # TODO: Enviar email con link de reseteo
+            # Enviar email con link de reseteo
+            reset_url = f'http://localhost:3000/reset-password/{token}'
+            subject = 'Recuperación de contraseña - Inmobiliaria GTH'
+            message = f'Hola {user.get_full_name()},\n\nHas solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:\n\n{reset_url}\n\nEste enlace expirará en 2 horas.\n\nSi no solicitaste este cambio, ignora este mensaje.\n\nSaludos,\nEquipo de Inmobiliaria GTH'
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                print(f'Error sending email: {e}')
             
             return Response(
                 {'message': 'Se ha enviado un email con instrucciones para resetear tu contraseña'},

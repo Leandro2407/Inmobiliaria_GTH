@@ -35,10 +35,12 @@ const AuthModal = ({ show, onHide }) => {
   const registerSchema = Yup.object().shape({
     first_name: Yup.string()
       .required('Nombre requerido')
-      .min(2, 'Mínimo 2 caracteres'),
+      .min(2, 'Mínimo 2 caracteres')
+      .matches(/^[A-Za-zÀ-ÿ\s]+$/, 'El nombre solo puede contener letras'),
     last_name: Yup.string()
       .required('Apellido requerido')
-      .min(2, 'Mínimo 2 caracteres'),
+      .min(2, 'Mínimo 2 caracteres')
+      .matches(/^[A-Za-zÀ-ÿ\s]+$/, 'El apellido solo puede contener letras'),
     email: Yup.string()
       .email('Correo inválido')
       .required('Correo requerido'),
