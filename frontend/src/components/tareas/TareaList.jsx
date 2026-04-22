@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Alert, Spinner, Form, Modal, InputGroup, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Alert, Spinner, Form, Modal, InputGroup, Pagination } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import TareaItem from './TareaItem';
 import TareaForm from './TareaForm';
@@ -18,6 +18,12 @@ const TareaList = () => {
   const [showEdit, setShowEdit] = useState(false);
   const [empleados, setEmpleados] = useState([]);
   
+  // Estados para paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalTareas, setTotalTareas] = useState(0);
+  const itemsPorPagina = 10;
+  
   // Estados para filtros
   const [filtroEstado, setFiltroEstado] = useState('todas');
   const [filtroPrioridad, setFiltroPrioridad] = useState('todas');
@@ -25,66 +31,32 @@ const TareaList = () => {
 
   // Cargar tareas y empleados al montar el componente
   useEffect(() => {
-    loadTareas();
+    loadTareas(1);
     loadEmpleados();
   }, []);
 
-  // Filtrar tareas según criterios seleccionados
-  const tareasFiltradas = tareas.filter(tarea => {
-    // Filtro por estado
-    let cumpleEstado = true;
-    switch (filtroEstado) {
-      case 'pendientes':
-        cumpleEstado = !tarea.finalizada;
-        break;
-      case 'finalizadas':
-        cumpleEstado = tarea.finalizada;
-        break;
-      default:
-        cumpleEstado = true;
-    }
-
-    // Filtro por prioridad
-    let cumplePrioridad = true;
-    switch (filtroPrioridad) {
-      case 'alta':
-        cumplePrioridad = tarea.prioridad === 'alta';
-        break;
-      case 'media':
-        cumplePrioridad = tarea.prioridad === 'media';
-        break;
-      case 'baja':
-        cumplePrioridad = tarea.prioridad === 'baja';
-        break;
-      default:
-        cumplePrioridad = true;
-    }
-
-    // Filtro por búsqueda en nombre o descripción
-    let cumpleBusqueda = true;
-    if (busqueda.trim() !== '') {
-      const busquedaLower = busqueda.toLowerCase();
-      const nombre = tarea.nombre?.toLowerCase() || '';
-      const descripcion = tarea.descripcion?.toLowerCase() || '';
-      
-      cumpleBusqueda = nombre.includes(busquedaLower) || descripcion.includes(busquedaLower);
-    }
-
-    // Combinar todos los filtros
-    return cumpleEstado && cumplePrioridad && cumpleBusqueda;
-  });
-
-  // Cargar tareas desde el servicio
-  const loadTareas = async () => {
+  // Cargar tareas con paginación
+  const loadTareas = async (pagina = 1) => {
     try {
       setLoading(true);
       setError('');
-      console.log('🔄 Cargando tareas...');
+      console.log('🔄 Cargando tareas página:', pagina);
       
-      const response = await tareaService.getTareas();
-      console.log('✅ Tareas cargadas:', response.data);
+      const response = await tareaService.getTareas(pagina, itemsPorPagina);
       
-      setTareas(response.data);
+      // Si la API devuelve paginación (results, count, next, previous)
+      if (response.data.results) {
+        setTareas(response.data.results);
+        setTotalTareas(response.data.count);
+        setTotalPaginas(Math.ceil(response.data.count / itemsPorPagina));
+      } else {
+        // Si no hay paginación, usar los datos directamente
+        setTareas(response.data);
+        setTotalTareas(response.data.length);
+        setTotalPaginas(1);
+      }
+      
+      setPaginaActual(pagina);
     } catch (err) {
       console.error('❌ Error cargando tareas:', err);
       let errorMessage = 'Error al cargar las tareas';
@@ -100,6 +72,13 @@ const TareaList = () => {
       setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Cambiar de página
+  const cambiarPagina = (nuevaPagina) => {
+    if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
+      loadTareas(nuevaPagina);
     }
   };
 
@@ -124,13 +103,11 @@ const TareaList = () => {
       console.log('🔄 Creando tarea:', tareaData);
       await tareaService.createTarea(tareaData);
       
-      // ✅ FIX: Cerrar modal ANTES de actualizar datos para evitar conflicto DOM
       setShowCreateModal(false);
       
-      // Esperar a que Bootstrap termine la transición del modal (300ms min)
       setTimeout(() => {
-        loadTareas();
-        loadEmpleados(); // Recargar empleados en caso de cambios
+        loadTareas(1);
+        loadEmpleados();
       }, 350);
     } catch (err) {
       console.error('Error creando tarea:', err);
@@ -144,16 +121,25 @@ const TareaList = () => {
     try {
       console.log('🔄 Actualizando tarea:', editingTarea.id, tareaData);
       await tareaService.updateTarea(editingTarea.id, tareaData);
-      
-      // ✅ FIX: Cerrar modal ANTES de actualizar datos para evitar conflicto DOM
+    
+    // 🔧 Obtener la tarea actualizada del backend
+      const response = await tareaService.getTarea(editingTarea.id);
+      const tareaActualizada = response.data;
+    
+    // 🔧 Actualizar la lista de tareas y el editingTarea
+      setTareas(prevTareas => 
+        prevTareas.map(t => t.id === tareaActualizada.id ? tareaActualizada : t)
+      );
+    
+    // 🔧 Actualizar editingTarea con los nuevos datos
+      setEditingTarea(tareaActualizada);
+    
       setShowEdit(false);
-      setEditingTarea(null);
-      
-      // Esperar a que Bootstrap termine la transición del modal (300ms min)
+    
+    // Recargar lista completa para mantener consistencia
       setTimeout(() => {
-        loadTareas();
-        loadEmpleados(); // Recargar empleados en caso de cambios
-      }, 350);
+        loadTareas(paginaActual);
+      }, 300);
     } catch (err) {
       console.error('Error actualizando tarea:', err);
       setError('Error al actualizar la tarea');
@@ -166,7 +152,7 @@ const TareaList = () => {
     try {
       console.log('🔄 Eliminando tarea:', id);
       await tareaService.deleteTarea(id);
-      await loadTareas();
+      await loadTareas(paginaActual);
     } catch (err) {
       console.error('Error eliminando tarea:', err);
       let errorMessage = 'Error al eliminar la tarea';
@@ -186,7 +172,7 @@ const TareaList = () => {
     try {
       console.log('🔄 Finalizando tarea:', id);
       await tareaService.finalizarTarea(id);
-      await loadTareas();
+      await loadTareas(paginaActual);
     } catch (err) {
       console.error('Error finalizando tarea:', err);
       setError('Error al finalizar la tarea');
@@ -196,7 +182,7 @@ const TareaList = () => {
 
   // Iniciar edición de tarea
   const handleEditTarea = (tarea) => {
-    loadEmpleados(); // Recargar empleados antes de abrir el modal de edición
+    loadEmpleados();
     setEditingTarea(tarea);
     setShowEdit(true);
   };
@@ -213,23 +199,62 @@ const TareaList = () => {
     setFiltroPrioridad('todas');
   };
 
-  // Estadísticas para mostrar en tarjetas
+  // Filtrar tareas (solo las de la página actual)
+  const tareasFiltradas = tareas.filter(tarea => {
+    let cumpleEstado = true;
+    switch (filtroEstado) {
+      case 'pendientes':
+        cumpleEstado = !tarea.finalizada;
+        break;
+      case 'finalizadas':
+        cumpleEstado = tarea.finalizada;
+        break;
+      default:
+        cumpleEstado = true;
+    }
+
+    let cumplePrioridad = true;
+    switch (filtroPrioridad) {
+      case 'alta':
+        cumplePrioridad = tarea.prioridad === 'alta';
+        break;
+      case 'media':
+        cumplePrioridad = tarea.prioridad === 'media';
+        break;
+      case 'baja':
+        cumplePrioridad = tarea.prioridad === 'baja';
+        break;
+      default:
+        cumplePrioridad = true;
+    }
+
+    let cumpleBusqueda = true;
+    if (busqueda.trim() !== '') {
+      const busquedaLower = busqueda.toLowerCase();
+      const nombre = tarea.nombre?.toLowerCase() || '';
+      const descripcion = tarea.descripcion?.toLowerCase() || '';
+      cumpleBusqueda = nombre.includes(busquedaLower) || descripcion.includes(busquedaLower);
+    }
+
+    return cumpleEstado && cumplePrioridad && cumpleBusqueda;
+  });
+
+  // Estadísticas
   const tareasPendientes = tareas.filter(t => !t.finalizada).length;
   const tareasFinalizadas = tareas.filter(t => t.finalizada).length;
   const tareasAlta = tareas.filter(t => t.prioridad === 'alta').length;
   const tareasMedia = tareas.filter(t => t.prioridad === 'media').length;
   const tareasBaja = tareas.filter(t => t.prioridad === 'baja').length;
 
-  // Componente para reintentar carga en caso de error
   const ReintentarButton = () => (
-    <Button variant="warning" onClick={loadTareas} className="mt-3">
+    <Button variant="warning" onClick={() => loadTareas(1)} className="mt-3">
       <i className="fas fa-redo me-2"></i>
       Reintentar Carga
     </Button>
   );
 
   // Mostrar spinner mientras carga
-  if (loading) {
+  if (loading && tareas.length === 0) {
     return (
       <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
         <div className="text-center">
@@ -256,7 +281,7 @@ const TareaList = () => {
               variant="success" 
               size="lg"
               onClick={() => {
-                loadEmpleados(); // Recargar empleados antes de abrir el modal
+                loadEmpleados();
                 setShowCreateModal(true);
               }}
               className="fw-bold px-4"
@@ -273,7 +298,7 @@ const TareaList = () => {
               <Col md={2}>
                 <Card className="border-0 shadow-sm bg-dark bg-opacity-10">
                   <Card.Body className="text-center">
-                    <h3 className="text-dark mb-1">{tareas.length}</h3>
+                    <h3 className="text-dark mb-1">{totalTareas}</h3>
                     <small className="text-muted">Total</small>
                   </Card.Body>
                 </Card>
@@ -350,7 +375,6 @@ const TareaList = () => {
             <Card className="border-0 shadow-sm">
               <Card.Body className="py-3">
                 <div className="row">
-                  {/* Búsqueda por texto */}
                   <div className="col-md-4">
                     <Form.Group>
                       <Form.Label className="fw-bold">
@@ -377,7 +401,6 @@ const TareaList = () => {
                     </Form.Group>
                   </div>
                   
-                  {/* Filtro por estado */}
                   <div className="col-md-3">
                     <Form.Group>
                       <Form.Label className="fw-bold">
@@ -395,7 +418,6 @@ const TareaList = () => {
                     </Form.Group>
                   </div>
                   
-                  {/* Filtro por prioridad */}
                   <div className="col-md-3">
                     <Form.Group>
                       <Form.Label className="fw-bold">
@@ -414,7 +436,6 @@ const TareaList = () => {
                     </Form.Group>
                   </div>
                   
-                  {/* Botón para limpiar filtros */}
                   <div className="col-md-2 d-flex align-items-end">
                     <Button 
                       variant="outline-secondary" 
@@ -428,45 +449,11 @@ const TareaList = () => {
                   </div>
                 </div>
                 
-                {/* Información de filtros aplicados */}
                 <div className="mt-3">
                   <small className="text-muted">
                     <i className="fas fa-info-circle me-1"></i>
-                    {tareasFiltradas.length} tarea(s) encontrada(s)
-                    {tareas.length !== tareasFiltradas.length && ` de ${tareas.length} total(es)`}
-                    
-                    {/* Mostrar badges de filtros activos */}
-                    {(filtroEstado !== 'todas' || filtroPrioridad !== 'todas' || busqueda) && (
-                      <span className="ms-2">
-                        Filtros: 
-                        {filtroEstado !== 'todas' && (
-                          <Badge 
-                            className="ms-1"
-                            style={{
-                              backgroundColor: filtroEstado === 'pendientes' ? '#e67e22' : '#28a745'
-                            }}
-                          >
-                            {filtroEstado === 'pendientes' ? 'Pendientes' : 'Finalizadas'}
-                          </Badge>
-                        )}
-                        {filtroPrioridad !== 'todas' && (
-                          <Badge 
-                            bg={
-                              filtroPrioridad === 'alta' ? 'danger' : 
-                              filtroPrioridad === 'media' ? 'warning' : 'primary'
-                            } 
-                            className="ms-1"
-                          >
-                            {filtroPrioridad === 'alta' ? 'Alta' : filtroPrioridad === 'media' ? 'Media' : 'Baja'} Prioridad
-                          </Badge>
-                        )}
-                        {busqueda && (
-                          <Badge bg="dark" className="ms-1">
-                            Búsqueda: "{busqueda}"
-                          </Badge>
-                        )}
-                      </span>
-                    )}
+                    Mostrando página {paginaActual} de {totalPaginas} | {totalTareas} tarea(s) total(es)
+                    {tareasFiltradas.length !== tareas.length && ` (${tareasFiltradas.length} filtradas)`}
                   </small>
                 </div>
               </Card.Body>
@@ -475,29 +462,24 @@ const TareaList = () => {
         </Row>
       )}
 
-      {/* Lista de tareas con scroll */}
+      {/* Lista de tareas */}
       <Row>
         <Col>
           <div 
             style={{ 
-              maxHeight: '65vh', 
+              maxHeight: '55vh', 
               overflowY: 'auto',
               overflowX: 'hidden',
               paddingRight: '10px'
             }}
             className="tareas-scroll-container"
           >
-            {/* Estados vacíos o con error */}
             {error && tareas.length === 0 ? (
               <Card className="border-0 shadow-sm text-center py-5">
                 <Card.Body>
                   <i className="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
                   <h5 className="text-warning">No se pudieron cargar las tareas</h5>
-                  <p className="text-muted mb-3">
-                    {error.includes('conectar') 
-                      ? 'Verifica que el servidor backend esté ejecutándose en http://localhost:8000'
-                      : 'Hubo un problema al cargar las tareas desde el servidor.'}
-                  </p>
+                  <p className="text-muted mb-3">{error}</p>
                   <ReintentarButton />
                 </Card.Body>
               </Card>
@@ -511,26 +493,23 @@ const TareaList = () => {
                       ? `No se encontraron tareas con "${busqueda}"`
                       : filtroEstado !== 'todas' || filtroPrioridad !== 'todas'
                         ? 'No hay tareas que coincidan con los filtros seleccionados.'
-                        : 'No se encontraron tareas. Crea la primera tarea.'}
+                        : 'No se encontraron tareas en esta página.'}
                   </p>
-                  {(filtroEstado !== 'finalizadas' || busqueda || filtroPrioridad !== 'todas') && (
-                    <div className="d-flex gap-2 justify-content-center">
-                      {(busqueda || filtroEstado !== 'todas' || filtroPrioridad !== 'todas') && (
-                        <Button variant="outline-secondary" onClick={handleLimpiarFiltros}>
-                          <i className="fas fa-broom me-2"></i>
-                          Limpiar Filtros
-                        </Button>
-                      )}
-                      <Button variant="success" onClick={() => setShowCreateModal(true)}>
-                        <i className="fas fa-plus me-2"></i>
-                        Crear Tarea
+                  <div className="d-flex gap-2 justify-content-center">
+                    {(busqueda || filtroEstado !== 'todas' || filtroPrioridad !== 'todas') && (
+                      <Button variant="outline-secondary" onClick={handleLimpiarFiltros}>
+                        <i className="fas fa-broom me-2"></i>
+                        Limpiar Filtros
                       </Button>
-                    </div>
-                  )}
+                    )}
+                    <Button variant="success" onClick={() => setShowCreateModal(true)}>
+                      <i className="fas fa-plus me-2"></i>
+                      Crear Tarea
+                    </Button>
+                  </div>
                 </Card.Body>
               </Card>
             ) : (
-              // Lista de tareas filtradas
               tareasFiltradas.map(tarea => (
                 <TareaItem
                   key={tarea.id}
@@ -544,6 +523,66 @@ const TareaList = () => {
           </div>
         </Col>
       </Row>
+
+      {/* Paginación */}
+      {!error && totalPaginas > 1 && (
+        <Row className="mt-4">
+          <Col>
+            <div className="d-flex justify-content-center align-items-center gap-3">
+              <Pagination>
+                <Pagination.First 
+                  onClick={() => cambiarPagina(1)} 
+                  disabled={paginaActual === 1} 
+                />
+                <Pagination.Prev 
+                  onClick={() => cambiarPagina(paginaActual - 1)} 
+                  disabled={paginaActual === 1} 
+                />
+                
+                {[...Array(totalPaginas).keys()].map(num => {
+                  const paginaNum = num + 1;
+                  if (
+                    paginaNum === 1 ||
+                    paginaNum === totalPaginas ||
+                    (paginaNum >= paginaActual - 2 && paginaNum <= paginaActual + 2)
+                  ) {
+                    return (
+                      <Pagination.Item
+                        key={paginaNum}
+                        active={paginaNum === paginaActual}
+                        onClick={() => cambiarPagina(paginaNum)}
+                      >
+                        {paginaNum}
+                      </Pagination.Item>
+                    );
+                  } else if (
+                    (paginaNum === paginaActual - 3 && paginaActual > 3) ||
+                    (paginaNum === paginaActual + 3 && paginaActual < totalPaginas - 2)
+                  ) {
+                    return <Pagination.Ellipsis key={`ellipsis-${paginaNum}`} />;
+                  }
+                  return null;
+                })}
+                
+                <Pagination.Next 
+                  onClick={() => cambiarPagina(paginaActual + 1)} 
+                  disabled={paginaActual === totalPaginas} 
+                />
+                <Pagination.Last 
+                  onClick={() => cambiarPagina(totalPaginas)} 
+                  disabled={paginaActual === totalPaginas} 
+                />
+              </Pagination>
+              
+              <div className="text-muted">
+                <small>
+                  Mostrando {tareas.length} de {totalTareas} tareas
+                </small>
+              </div>
+            </div>
+          </Col>
+        </Row>
+      )}
 
       {/* Modal para crear nueva tarea */}
       <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
@@ -574,23 +613,19 @@ const TareaList = () => {
         empleados={empleados}
       />
 
-      {/* Estilos personalizados para el scroll */}
       <style>
         {`
           .tareas-scroll-container::-webkit-scrollbar {
             width: 8px;
           }
-          
           .tareas-scroll-container::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 10px;
           }
-          
           .tareas-scroll-container::-webkit-scrollbar-thumb {
             background: #888;
             border-radius: 10px;
           }
-          
           .tareas-scroll-container::-webkit-scrollbar-thumb:hover {
             background: #555;
           }

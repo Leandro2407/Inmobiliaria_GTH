@@ -5,13 +5,14 @@ const BASE_PATH = '/tareas/tareas/';
 
 const tareaService = {
   /**
-   * Obtener lista de todas las tareas
+   * Obtener lista de todas las tareas con paginación
    */
-  async getTareas() {
+  async getTareas(page = 1, pageSize = 10) {
     try {
       const response = await api.get(BASE_PATH, {
         params: {
-          page_size: 1000 // Obtener todas las tareas sin paginación
+          page: page,
+          page_size: pageSize
         }
       });
       return response;
@@ -52,14 +53,7 @@ const tareaService = {
    */
   async updateTarea(id, tareaData) {
     try {
-
-      console.log('📅 Recibido en tareaService.updateTarea:', tareaData);
-      console.log('📅 Fecha en tareaService:', tareaData.fecha);
-
       const response = await api.put(`${BASE_PATH}${id}/`, tareaData);
-      
-      console.log('📅 Respuesta del backend:', response.data);
-
       return response;
     } catch (error) {
       console.error('Error al actualizar tarea:', error);
@@ -98,9 +92,9 @@ const tareaService = {
    */
   async getEstadisticas() {
     try {
-      const response = await this.getTareas();
-      // Verificamos si la API devuelve un array directo o un objeto con "results"
-      const tareas = Array.isArray(response.data) ? response.data : (response.data.results || []);
+      const timestamp = Date.now();
+      const response = await this.getTareas(1, 1000);
+      const tareas = response.data.results || response.data || [];
       
       const finalizadas = tareas.filter(t => t.finalizada).length;
       const pendientes = tareas.filter(t => !t.finalizada).length;
