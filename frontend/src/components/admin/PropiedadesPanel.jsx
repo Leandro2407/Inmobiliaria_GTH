@@ -261,11 +261,14 @@ const PropiedadesPanel = () => {
     const max = 5;
     const seleccionadas = files.slice(0, max);
     const previews = seleccionadas.map((file) => {
+      // Extraer nombre del archivo sin extensión para usar como título
+      const filename = file.name.split('.').slice(0, -1).join('.');
       return {
         preview: URL.createObjectURL(file),
         file: file,
         isNew: true,
-        type: 'file'
+        type: 'file',
+        titulo: filename || 'Video'
       };
     });
 
@@ -440,7 +443,7 @@ const PropiedadesPanel = () => {
           
           // Determinar si es archivo o YouTube
           if (vid.file) {
-            console.log(`DEBUG: Enviando video de archivo: ${vid.file.name}`);
+            console.log(`DEBUG: Enviando video de archivo: ${vid.file.name}, tamaño: ${vid.file.size} bytes`);
             formData.append('video', vid.file);
           } else if (vid.url) {
             console.log(`DEBUG: Enviando URL de YouTube: ${vid.url}`);
@@ -452,6 +455,16 @@ const PropiedadesPanel = () => {
           
           formData.append('titulo', vid.titulo || `Video ${i + 1}`);
           
+          // Log del FormData que se va a enviar
+          console.log(`FormData a enviar para video ${i + 1}:`);
+          for (let pair of formData.entries()) {
+            if (pair[0] === 'video' && pair[1] instanceof File) {
+              console.log(`  ${pair[0]}: File(${pair[1].name}, ${pair[1].size} bytes)`);
+            } else {
+              console.log(`  ${pair[0]}: ${pair[1]}`);
+            }
+          }
+          
           try {
             console.log(`Subiendo video ${i + 1} a propiedad ${propiedadId}`);
             const res = await propiedadService.subirVideo(propiedadId, formData);
@@ -459,8 +472,43 @@ const PropiedadesPanel = () => {
             videosSubidos++;
           } catch (error) {
             console.error('Error subiendo video:', error);
-            const msg = error?.response?.data || error.message || 'desconocido';
-            toast.error(`Error al subir video ${i + 1}: ${JSON.stringify(msg)}`);
+
+            // ✅ FIX: el servicio lanza `error.response?.data || error`, por lo que
+            // el objeto recibido aquí puede ser directamente el data del servidor
+            // (ej. { error: "..." }) o un Error de red. Ya no es el objeto axios completo,
+            // así que no hay que buscar error.response.data — el error YA ES el data.
+            let errorMsg = 'desconocido';
+
+            // Caso 1: el error lanzado es directamente el data del servidor (objeto o string)
+            if (error && typeof error === 'object' && !(error instanceof Error)) {
+              if (typeof error === 'string') {
+                errorMsg = error;
+              } else if (error.error) {
+                errorMsg = error.error;
+              } else if (error.detail) {
+                errorMsg = error.detail;
+              } else if (Array.isArray(error)) {
+                errorMsg = error.join(', ');
+              } else {
+                const firstKey = Object.keys(error)[0];
+                if (firstKey) {
+                  errorMsg = Array.isArray(error[firstKey])
+                    ? error[firstKey][0]
+                    : String(error[firstKey]);
+                } else {
+                  errorMsg = JSON.stringify(error);
+                }
+              }
+            // Caso 2: error de red u otro Error nativo (sin response)
+            } else if (error instanceof Error) {
+              errorMsg = error.message || 'Error de red';
+            } else if (typeof error === 'string') {
+              errorMsg = error;
+            }
+
+            console.error(`Error upload video ${i + 1}:`, errorMsg);
+            console.error('Error completo:', error);
+            toast.error(`Error al subir video ${i + 1}: ${errorMsg}`);
           }
         }
         
@@ -558,15 +606,19 @@ const PropiedadesPanel = () => {
       // FIX: Cargar videos existentes y sincronizar el ref
       if (propiedadCompleta.videos && propiedadCompleta.videos.length > 0) {
         const videoPreviews = propiedadCompleta.videos.map(vid => {
-          const url = vid.video || vid.url_youtube || '';
-          const previewUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
+          // Usar video_url para archivos de video (URL absoluta ya procesada por el serializer)
+          // o url_youtube para videos de YouTube
+          const videoUrl = vid.video_url || '';
+          const youtubeUrl = vid.url_youtube || '';
+          
           return { 
-            preview: previewUrl, 
-            video: url, 
-            url_youtube: vid.url_youtube,
+            preview: videoUrl || youtubeUrl, // Para preview, usar la URL disponible
+            video_url: videoUrl, // Para mostrar el video
+            url: youtubeUrl, // Para YouTube
+            url_youtube: youtubeUrl,
             isNew: false, 
             id: vid.id,
-            type: vid.url_youtube ? 'youtube' : 'file',
+            type: youtubeUrl ? 'youtube' : 'file',
             titulo: vid.titulo
           };
         });
@@ -814,13 +866,23 @@ const PropiedadesPanel = () => {
                                 </div>
                               </div>
                             </div>
-                          ) : (
+                          ) : video.video_url ? (
                             <video
-                              src={ensureAbsoluteUrl(video.video_url)}
+                              src={video.video_url}
                               style={{ width: '200px', height: '150px', objectFit: 'cover' }}
                               controls
                               className="border rounded"
                             />
+                          ) : (
+                            <div className="bg-light border rounded p-2" style={{ width: '200px', height: '150px' }}>
+                              <div className="d-flex align-items-center justify-content-center h-100">
+                                <div className="text-center">
+                                  <i className="fas fa-video fa-2x text-muted mb-2"></i>
+                                  <p className="small mb-0 text-muted">Video</p>
+                                  <p className="small text-muted">{video.titulo}</p>
+                                </div>
+                              </div>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -1634,12 +1696,29 @@ const PropiedadesPanel = () => {
 
                 <Form.Group className="mb-3">
                   <Form.Label>URL de YouTube (Opcional)</Form.Label>
-                  <Form.Control
-                    type="url"
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    onChange={(e) => {
-                      const url = e.target.value.trim();
-                      if (url) {
+                  <div className="d-flex gap-2">
+                    <Form.Control
+                      type="url"
+                      id="youtubeUrlInput"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                    />
+                    <Button
+                      variant="dark"
+                      onClick={() => {
+                        const input = document.getElementById('youtubeUrlInput');
+                        const url = input.value.trim();
+                        
+                        if (!url) {
+                          toast.error('Por favor ingresa una URL de YouTube');
+                          return;
+                        }
+                        
+                        // Validar que sea una URL válida de YouTube
+                        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+                          toast.error('Por favor ingresa una URL válida de YouTube');
+                          return;
+                        }
+                        
                         const newVideo = {
                           url: url,
                           type: 'youtube',
@@ -1651,13 +1730,15 @@ const PropiedadesPanel = () => {
                           videosPreviasRef.current = nuevas;
                           return nuevas;
                         });
-                        e.target.value = ''; // Limpiar el input
-                        toast.info('Video de YouTube agregado');
-                      }
-                    }}
-                  />
+                        input.value = ''; // Limpiar el input
+                        toast.success('Video de YouTube agregado');
+                      }}
+                    >
+                      Agregar
+                    </Button>
+                  </div>
                   <Form.Text className="text-muted">
-                    Pega la URL de un video de YouTube para incluirlo en la propiedad.
+                    Pega la URL de un video de YouTube y haz clic en "Agregar" para incluirlo en la propiedad.
                   </Form.Text>
                 </Form.Group>
 

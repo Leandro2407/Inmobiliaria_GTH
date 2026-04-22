@@ -108,6 +108,15 @@ const propiedadService = {
       );
       return response.data;
     } catch (error) {
+      // ✅ FIX: lanzar error.response?.data || error, igual que el resto de métodos.
+      // Antes se hacía `throw error` (objeto axios completo), lo que rompía la lógica
+      // de detección de errores en el panel, que espera recibir el data directamente.
+      console.error('subirVideo error completo:', {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        headers: error?.response?.headers,
+        message: error?.message,
+      });
       throw error.response?.data || error;
     }
   },

@@ -17,8 +17,8 @@ from usuarios.permissions import IsAgenteOrAdmin
 class PropiedadViewSet(viewsets.ModelViewSet):
     """ViewSet para CRUD de propiedades"""
     
-    # prefetch images to avoid N+1 queries al serializar
-    queryset = Propiedad.objects.all().prefetch_related('imagenes')
+    # prefetch images and videos to avoid N+1 queries al serializar
+    queryset = Propiedad.objects.all().prefetch_related('imagenes', 'videos')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['tipo', 'operacion', 'estado', 'zona', 'barrio', 'destacada']
     search_fields = ['titulo', 'descripcion', 'direccion', 'barrio']
@@ -174,27 +174,82 @@ class PropiedadViewSet(viewsets.ModelViewSet):
         serializer = ImagenPropiedadSerializer(imagen_obj, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser])
+    @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser], permission_classes=[IsAuthenticated])
     def subir_video(self, request, pk=None):
         """Subir video a una propiedad"""
-        propiedad = self.get_object()
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"=== INICIO SUBIR VIDEO ===")
+        logger.info(f"PK: {pk}")
+        logger.info(f"REQUEST METHOD: {request.method}")
+        logger.info(f"REQUEST FILES: {list(request.FILES.keys())}")
+        logger.info(f"REQUEST DATA: {dict(request.data)}")
+        
+        try:
+            propiedad = self.get_object()
+            logger.info(f"Propiedad obtenida: {propiedad.id} - {propiedad.titulo}")
+        except Exception as e:
+            logger.error(f"Error al obtener propiedad con id {pk}: {str(e)}")
+            return Response(
+                {'error': f'Propiedad no encontrada: {str(e)}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         video = request.FILES.get('video')
         url_youtube = request.data.get('url_youtube', '').strip()
-        titulo = request.data.get('titulo', '')
+        titulo = request.data.get('titulo', '').strip()
         miniatura = request.FILES.get('miniatura')
+        
+        logger.info(f"VIDEO RECIBIDO: {video is not None}")
+        if video:
+            logger.info(f"  - Nombre: {video.name}")
+            logger.info(f"  - Tamaño: {video.size} bytes ({video.size / 1024 / 1024:.2f} MB)")
+            logger.info(f"  - Content-Type: {video.content_type}")
+        logger.info(f"URL YOUTUBE: {url_youtube}")
+        logger.info(f"TITULO: {titulo}")
         
         # Validar que al menos uno esté presente
         if not video and not url_youtube:
+            logger.warning("No se proporcionó video ni URL de YouTube")
             return Response(
                 {'error': 'Debe proporcionar un video o una URL de YouTube'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Log para debug
-        print(f"DEBUG: Subiendo video - video={video is not None}, url_youtube={url_youtube}, titulo={titulo}")
+        # Validar tamaño del video si se proporciona
+        if video:
+            max_size = 500 * 1024 * 1024  # 500 MB
+            if video.size > max_size:
+                logger.warning(f"Video demasiado grande: {video.size / 1024 / 1024:.2f} MB")
+                return Response(
+                    {'error': f'El video es demasiado grande. Máximo 500 MB. Tamaño actual: {video.size / 1024 / 1024:.2f} MB'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
         try:
+            # Generar un título por defecto si no se proporciona
+            if not titulo:
+                if video:
+                    titulo = video.name.rsplit('.', 1)[0]  # Usar nombre del archivo sin extensión
+                else:
+                    titulo = 'Video de YouTube'
+
+            # ✅ FIX: Truncar el nombre del archivo si es demasiado largo.
+            # Algunos videos (ej. descargados de apps) tienen nombres extremadamente largos
+            # que superan el max_length del FileField y Django lanza un error de storage.
+            # Se conserva la extensión y se trunca el nombre base a 50 caracteres.
+            if video:
+                import os
+                nombre_base, extension = os.path.splitext(video.name)
+                extension = extension[:10]  # Extensión máxima razonable
+                if len(nombre_base) > 50:
+                    nombre_base = nombre_base[:50]
+                video.name = nombre_base + extension
+            
+            logger.info(f"Creando VideoPropiedad para propiedad {propiedad.id}")
+            logger.info(f"  - Datos a guardar: video={video is not None}, url_youtube={url_youtube}, titulo={titulo}")
+            
             # Crear el video directamente sin serializer para evitar validación duplicada
             video_obj = VideoPropiedad.objects.create(
                 propiedad=propiedad,
@@ -203,13 +258,15 @@ class PropiedadViewSet(viewsets.ModelViewSet):
                 titulo=titulo,
                 miniatura=miniatura if miniatura else None
             )
-            print(f"DEBUG: Video creado con id={video_obj.id}")
+            logger.info(f"Video creado exitosamente con id={video_obj.id}")
             
             # Serializar para obtener URLs absolutas
             serializer = VideoPropiedadSerializer(video_obj, context={'request': request})
+            logger.info(f"=== FIN SUBIR VIDEO (EXITOSO) ===")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
-            print(f"ERROR: {str(e)}")
+            logger.error(f"Error al crear video: {str(e)}", exc_info=True)
+            logger.error(f"=== FIN SUBIR VIDEO (ERROR) ===")
             return Response(
                 {'error': f'Error al subir video: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST

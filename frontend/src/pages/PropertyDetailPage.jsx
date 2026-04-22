@@ -14,6 +14,8 @@ const PropertyDetailPage = () => {
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  // Pausar el autoplay del carrusel cuando hay un video activo en pantalla
+  const [carouselPaused, setCarouselPaused] = useState(false);
 
   // Estados para el modal de agendar visita
   const [showVisitaModal, setShowVisitaModal] = useState(false);
@@ -42,9 +44,11 @@ const PropertyDetailPage = () => {
     return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
-  // Abrir imagen en modal
-  const handleImageClick = (index) => {
-    setSelectedImageIndex(index);
+  // Abrir imagen en modal (solo se llama desde items de tipo 'image' en el carrusel)
+  // idx es el índice dentro de mediaItems, hay que convertirlo al índice dentro de imagenes
+  const handleImageClick = (mediaIdx) => {
+    const imageIdx = mediaItems.slice(0, mediaIdx + 1).filter(i => i.type === 'image').length - 1;
+    setSelectedImageIndex(Math.max(imageIdx, 0));
     setShowImageModal(true);
   };
 
@@ -155,6 +159,28 @@ const PropertyDetailPage = () => {
       })
     : [{ imagen: 'https://via.placeholder.com/800x500?text=Sin+Imagen' }];
 
+  // Construir lista combinada: primero las imágenes, luego los videos
+  // Cada item tiene: type ('image' | 'video' | 'youtube'), y los datos correspondientes
+  const mediaItems = [
+    ...imagenes.map(img => ({ type: 'image', ...img })),
+    ...(propiedad.videos || []).map(vid => {
+      if (vid.url_youtube) {
+        // Convertir URL de YouTube a formato embed
+        let embedUrl = vid.url_youtube;
+        const ytMatch = embedUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
+        if (ytMatch) {
+          embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
+        }
+        return { type: 'youtube', embedUrl, titulo: vid.titulo };
+      }
+      // Video de archivo subido al servidor
+      const videoUrl = vid.video_url
+        ? (vid.video_url.startsWith('http') ? vid.video_url : `${BACKEND_URL}${vid.video_url}`)
+        : null;
+      return { type: 'video', videoUrl, titulo: vid.titulo };
+    }).filter(v => v.type === 'youtube' ? v.embedUrl : v.videoUrl),
+  ];
+
   return (
     <section className="py-5 bg-light" style={{ marginTop: '80px' }}>
       <Container>
@@ -178,19 +204,54 @@ const PropertyDetailPage = () => {
             <div className="property-gallery mb-4 rounded overflow-hidden shadow-sm">
               <Carousel
                 activeIndex={carouselIndex}
-                onSelect={(selectedIndex) => setCarouselIndex(selectedIndex)}
-                interval={3000} 
+                onSelect={(selectedIndex) => {
+                  setCarouselIndex(selectedIndex);
+                  // Pausar autoplay si el item seleccionado es un video
+                  const item = mediaItems[selectedIndex];
+                  setCarouselPaused(item?.type === 'video' || item?.type === 'youtube');
+                }}
+                interval={carouselPaused ? null : 3000}
                 pause="hover"
               >
-                {imagenes.map((img, idx) => (
+                {mediaItems.map((item, idx) => (
                   <Carousel.Item key={idx}>
-                    <img
-                      className="d-block w-100"
-                      src={img.imagen} 
-                      alt={`Slide ${idx + 1}`}
-                      style={{ height: '500px', objectFit: 'cover', cursor: 'pointer' }}
-                      onClick={() => handleImageClick(idx)}
-                    />
+                    {item.type === 'image' && (
+                      <img
+                        className="d-block w-100"
+                        src={item.imagen}
+                        alt={`Slide ${idx + 1}`}
+                        style={{ height: '500px', objectFit: 'cover', cursor: 'pointer' }}
+                        onClick={() => handleImageClick(idx)}
+                      />
+                    )}
+                    {item.type === 'video' && (
+                      <div style={{ height: '500px', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <video
+                          src={item.videoUrl}
+                          controls
+                          style={{ maxHeight: '500px', maxWidth: '100%', width: '100%' }}
+                          onPlay={() => setCarouselPaused(true)}
+                          onPause={() => setCarouselPaused(false)}
+                          onEnded={() => setCarouselPaused(false)}
+                        >
+                          Tu navegador no soporta la reproducción de video.
+                        </video>
+                      </div>
+                    )}
+                    {item.type === 'youtube' && (
+                      <div style={{ height: '500px', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <iframe
+                          title={item.titulo || `Video YouTube ${idx + 1}`}
+                          width="100%"
+                          height="500"
+                          src={item.embedUrl}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          style={{ display: 'block' }}
+                        />
+                      </div>
+                    )}
                   </Carousel.Item>
                 ))}
               </Carousel>
