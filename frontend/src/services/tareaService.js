@@ -92,7 +92,6 @@ const tareaService = {
    */
   async getEstadisticas() {
     try {
-      const timestamp = Date.now();
       const response = await this.getTareas(1, 1000);
       const tareas = response.data.results || response.data || [];
       

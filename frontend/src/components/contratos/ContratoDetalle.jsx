@@ -219,6 +219,7 @@ const ContratoDetalle = ({ show, onHide, contratoId, onEdit }) => {
     if (show && contratoId) {
       cargarDetalle();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, contratoId]);
 
   const handleDescargarPDF = () => {

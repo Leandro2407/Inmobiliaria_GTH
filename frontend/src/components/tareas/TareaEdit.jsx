@@ -83,6 +83,7 @@ const TareaEdit = ({ tarea, show, onHide, onUpdate, empleados }) => {
       cargarDatosActualizados(tarea.id);
       setErrors({});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tarea, show]);
 
   const handleChange = (e) => {
