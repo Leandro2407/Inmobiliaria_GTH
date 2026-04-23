@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BACKEND_URL } from '../../services/api';
-import { Card, Button, Row, Col, Badge, Spinner, Tab, Tabs, ListGroup, Image } from 'react-bootstrap';
+import { Card, Button, Row, Col, Badge, Spinner, Tab, Tabs, ListGroup } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import clienteService from '../../services/clienteService';
-import contratoService from '../../services/contratoService';
 
 // Componentes para gestión de visitas
 import VisitaList from '../../components/visitas/VisitaList';
@@ -19,8 +18,6 @@ const SeguimientoClienteDetalle = () => {
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('perfil');
-  const [contratos, setContratos] = useState([]);
-  const [loadingContratos, setLoadingContratos] = useState(false);
   
   const [showVisitaForm, setShowVisitaForm] = useState(false);
   const [showVisitaDetalle, setShowVisitaDetalle] = useState(false);
@@ -47,24 +44,6 @@ const SeguimientoClienteDetalle = () => {
       cargarCliente();
     }
   }, [id, navigate]);
-
-  useEffect(() => {
-    const cargarContratosCliente = async () => {
-      try {
-        setLoadingContratos(true);
-        const data = await contratoService.getByCliente(id);
-        const contratosData = data.results || data || [];
-        setContratos(contratosData);
-      } catch (error) {
-        console.error('Error al cargar contratos del cliente:', error);
-        setContratos([]);
-      } finally {
-        setLoadingContratos(false);
-      }
-    };
-
-    if (id) cargarContratosCliente();
-  }, [id]);
 
   const getBadgeColor = (estado) => {
     const colors = {
@@ -140,7 +119,7 @@ const SeguimientoClienteDetalle = () => {
                     <Badge bg={getCategoriaColor(cliente.categoria)} className="text-capitalize">
                       {cliente.categoria}
                     </Badge>
-                    <small className="text-muted">DNI: {cliente.dni?.includes('PENDIENTE') ? 'No especificado' : cliente.dni}</small>
+                    <small className="text-muted">DNI: {cliente.dni}</small>
                   </div>
                 </div>
               </div>
@@ -165,7 +144,7 @@ const SeguimientoClienteDetalle = () => {
                 <Card.Body>
                   <ListGroup variant="flush">
                     <ListGroup.Item className="d-flex justify-content-between"><strong>Nombre:</strong><span>{cliente.nombre_completo}</span></ListGroup.Item>
-                    <ListGroup.Item className="d-flex justify-content-between"><strong>DNI:</strong><span>{cliente.dni?.includes('PENDIENTE') ? 'No especificado' : cliente.dni}</span></ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between"><strong>DNI:</strong><span>{cliente.dni}</span></ListGroup.Item>
                     <ListGroup.Item className="d-flex justify-content-between"><strong>Email:</strong><span>{cliente.email}</span></ListGroup.Item>
                     <ListGroup.Item className="d-flex justify-content-between"><strong>Teléfono:</strong><span>{cliente.telefono}</span></ListGroup.Item>
                     <ListGroup.Item className="d-flex justify-content-between"><strong>Fecha Registro:</strong><span>{new Date(cliente.fecha_registro).toLocaleDateString()}</span></ListGroup.Item>
@@ -173,7 +152,6 @@ const SeguimientoClienteDetalle = () => {
                 </Card.Body>
               </Card>
             </Col>
-
             <Col md={6}>
               <Card className="h-100">
                 <Card.Header style={{ backgroundColor: '#000', color: 'white' }}>
@@ -182,22 +160,15 @@ const SeguimientoClienteDetalle = () => {
                 <Card.Body>
                   <ListGroup variant="flush">
                     <ListGroup.Item><strong>Domicilio:</strong><br/>{cliente.domicilio}</ListGroup.Item>
-                    <ListGroup.Item>
-                      <strong className="me-2">Ciudad:</strong>
-                      <span>{cliente.ciudad}</span>
-                    </ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between"><strong>Ciudad:</strong><span>{cliente.ciudad}</span></ListGroup.Item>
                     {cliente.codigo_postal && (
-                      <ListGroup.Item>
-                        <strong className="me-2">Código Postal:</strong>
-                        <span>{cliente.codigo_postal}</span>
-                      </ListGroup.Item>
+                      <ListGroup.Item className="d-flex justify-content-between"><strong>Código Postal:</strong><span>{cliente.codigo_postal}</span></ListGroup.Item>
                     )}
                   </ListGroup>
                 </Card.Body>
               </Card>
             </Col>
           </Row>
-
           <Row className="mt-4">
             <Col md={12}>
               <Card>
@@ -250,65 +221,6 @@ const SeguimientoClienteDetalle = () => {
 
         <Tab eventKey="contratos" title={<span style={{ color: '#000', fontWeight: '500' }}><i className="fas fa-file-contract me-2"></i> Contratos </span>}>
           <ContratosPanel clienteId={id} />
-        </Tab>
-
-        <Tab eventKey="intereses" title={<span style={{ color: '#dc3545', fontWeight: '500' }}><i className="fas fa-heart me-2"></i> Intereses </span>}>
-          <Card>
-            <Card.Header style={{ backgroundColor: '#000', color: 'white' }}>
-              <h6 className="mb-0"><i className="fas fa-heart me-2"></i> Preferencias e Intereses</h6>
-            </Card.Header>
-            <Card.Body>
-              {loadingContratos ? (
-                <div className="text-center py-4">
-                  <Spinner animation="border" />
-                </div>
-              ) : (
-                <div>
-                  {(!contratos || contratos.length === 0) ? (
-                    <div className="text-center py-5">
-                      <i className="fas fa-search fa-4x text-muted mb-3"></i>
-                      <h5 className="text-muted">No hay contratos con propiedades asociadas</h5>
-                      <p className="text-muted">Los intereses pueden estar vinculados a propiedades a través de los contratos registrados.</p>
-                    </div>
-                  ) : (
-                    <Row className="g-3 justify-content-center">
-                      {contratos.map((c) => {
-                        const prop = c.propiedad_info || c.propiedad || null;
-                        if (!prop) return null;
-                        const propId = prop.id || prop.pk || prop.id_propiedad;
-                        return (
-                          <Col md={8} lg={6} xl={5} key={c.id || propId} className="d-flex justify-content-center">
-                            <Card className="w-100">
-                              {(() => {
-                                const imagen = prop.imagen_principal || prop.imagenes?.[0]?.imagen || null;
-                                const src = imagen ? (imagen.startsWith('http') ? imagen : `${BACKEND_URL}${imagen}`) : 'https://via.placeholder.com/400x300?text=Sin+imagen';
-                                return (
-                                  <div style={{ height: 180, overflow: 'hidden' }}>
-                                    <Image src={src} alt={prop.titulo || 'Imagen propiedad'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                  </div>
-                                );
-                              })()}
-                              <Card.Body className="text-center">
-                                <h6 className="mb-1">{prop.titulo || prop.direccion || 'Propiedad'}</h6>
-                                <p className="text-muted small mb-2">{prop.direccion || prop.direccion_completa || ''}</p>
-                                <div className="d-flex justify-content-center align-items-center gap-2">
-                                  <Badge bg="secondary">{prop.tipo || ''}</Badge>
-                                  <Badge bg="secondary">{prop.zona || prop.barrio || ''}</Badge>
-                                </div>
-                                <div className="mt-3">
-                                  <Button variant="outline-dark" size="sm" onClick={() => navigate(`/propiedades/${propId}`)}>Ver detalles</Button>
-                                </div>
-                              </Card.Body>
-                            </Card>
-                          </Col>
-                        );
-                      })}
-                    </Row>
-                  )}
-                </div>
-              )}
-            </Card.Body>
-          </Card>
         </Tab>
       </Tabs>
 
