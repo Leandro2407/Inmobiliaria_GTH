@@ -87,3 +87,43 @@ class Cliente(models.Model):
     @property
     def esta_activo(self):
         return self.estado == 'activo'
+    # --- PEGAR ESTO AL FINAL DE TU models.py ---
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from usuarios.models import Usuario
+
+@receiver(post_save, sender=Usuario)
+def sincronizar_perfil_cliente(sender, instance, **kwargs):
+    """
+    Sincroniza los datos del Usuario (cuando el cliente edita su perfil)
+    con el modelo Cliente (que se ve en el panel del agente).
+    La vinculación se hace a través del email.
+    """
+    if instance.rol == 'cliente':
+        try:
+            # Buscar si el cliente ya existe en el panel por su email
+            cliente = Cliente.objects.get(email=instance.email)
+            
+            cambios = False
+            
+            # Sincronizar teléfono eliminando el problema de los ceros
+            if instance.telefono and cliente.telefono != instance.telefono:
+                cliente.telefono = instance.telefono
+                cambios = True
+                
+            # Sincronizamos nombre y apellido por si también los corrigió
+            if instance.first_name and cliente.nombre != instance.first_name:
+                cliente.nombre = instance.first_name
+                cambios = True
+                
+            if instance.last_name and cliente.apellido != instance.last_name:
+                cliente.apellido = instance.last_name
+                cambios = True
+                
+            if cambios:
+                cliente.save()
+                
+        except Cliente.DoesNotExist:
+            # Si el cliente aún no está en el CRM, no hacemos nada
+            pass
