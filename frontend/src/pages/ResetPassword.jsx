@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
-import { Form, Button, Spinner, Card } from 'react-bootstrap';
+import { Form, Button, Spinner, Card, InputGroup } from 'react-bootstrap';
 import authService from '../services/authService';
 import { toast } from 'react-toastify';
 import '../styles/AuthModal.css';
@@ -10,6 +10,10 @@ import '../styles/AuthModal.css';
 const ResetPassword = () => {
   const { token } = useParams();
   const navigate = useNavigate();
+
+  // Estados para controlar la visibilidad de las contraseñas
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
   useEffect(() => {
     localStorage.removeItem('access_token');
@@ -60,9 +64,6 @@ const ResetPassword = () => {
           <Card className="shadow-sm border-0">
             <Card.Body className="p-4">
               <h2 className="mb-4 text-center">Cambiar contraseña</h2>
-              <p className="text-center text-muted mb-4">
-                Ingresa una nueva contraseña y confírmala. Debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.
-              </p>
 
               <Formik
                 initialValues={{ newPassword: '', newPassword2: '' }}
@@ -81,42 +82,70 @@ const ResetPassword = () => {
                   <Form onSubmit={handleSubmit} noValidate>
                     <Form.Group className="mb-3">
                       <Form.Label>Nueva contraseña</Form.Label>
-                      <Form.Control
-                        type="password"
-                        name="newPassword"
-                        placeholder="Ingresa la nueva contraseña"
-                        value={values.newPassword}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        isInvalid={touched.newPassword && !!errors.newPassword}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.newPassword}
-                      </Form.Control.Feedback>
+                      <InputGroup hasValidation>
+                        <Form.Control
+                          type={showPassword ? "text" : "password"}
+                          name="newPassword"
+                          placeholder="Ingresa la nueva contraseña"
+                          value={values.newPassword}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          isInvalid={touched.newPassword && !!errors.newPassword}
+                        />
+                        <Button 
+                          variant="outline-secondary" 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{ borderColor: touched.newPassword && !!errors.newPassword ? '#dc3545' : '#ced4da' }}
+                        >
+                          <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                        </Button>
+                        <Form.Control.Feedback type="invalid">
+                          {errors.newPassword}
+                        </Form.Control.Feedback>
+                      </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
                       <Form.Label>Confirmar contraseña</Form.Label>
-                      <Form.Control
-                        type="password"
-                        name="newPassword2"
-                        placeholder="Repite la contraseña"
-                        value={values.newPassword2}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        isInvalid={touched.newPassword2 && !!errors.newPassword2}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.newPassword2}
-                      </Form.Control.Feedback>
+                      <InputGroup hasValidation>
+                        <Form.Control
+                          type={showPasswordConfirm ? "text" : "password"}
+                          name="newPassword2"
+                          placeholder="Repite la contraseña"
+                          value={values.newPassword2}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          isInvalid={touched.newPassword2 && !!errors.newPassword2}
+                        />
+                        <Button 
+                          variant="outline-secondary" 
+                          type="button"
+                          onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                          style={{ borderColor: touched.newPassword2 && !!errors.newPassword2 ? '#dc3545' : '#ced4da' }}
+                        >
+                          <i className={showPasswordConfirm ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                        </Button>
+                        <Form.Control.Feedback type="invalid">
+                          {errors.newPassword2}
+                        </Form.Control.Feedback>
+                      </InputGroup>
                     </Form.Group>
 
                     <div className="mb-3">
-                      <ul className="ps-3 mb-0 text-muted" style={{ fontSize: '0.95rem' }}>
-                        <li>8 caracteres como mínimo</li>
-                        <li>Al menos una mayúscula</li>
-                        <li>Al menos una minúscula</li>
-                        <li>Al menos un número</li>
+                      <ul className="ps-3 mb-0" style={{ fontSize: '0.95rem' }}>
+                        <li className={values.newPassword.length >= 8 ? 'text-success' : 'text-muted'}>
+                          8 caracteres como mínimo
+                        </li>
+                        <li className={/[A-Z]/.test(values.newPassword) ? 'text-success' : 'text-muted'}>
+                          Al menos una mayúscula
+                        </li>
+                        <li className={/[a-z]/.test(values.newPassword) ? 'text-success' : 'text-muted'}>
+                          Al menos una minúscula
+                        </li>
+                        <li className={/\d/.test(values.newPassword) ? 'text-success' : 'text-muted'}>
+                          Al menos un número
+                        </li>
                       </ul>
                     </div>
 

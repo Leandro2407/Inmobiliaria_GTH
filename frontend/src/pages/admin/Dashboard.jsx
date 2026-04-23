@@ -331,75 +331,74 @@ const Dashboard = () => {
           <Row>
             {/* Sidebar de navegación */}
             <Col lg={2} className="mb-4">
-              <Card className="shadow-sm sticky-top" style={{ top: '20px' }}>
-                <Card.Body className="p-0">
-                  <Nav variant="pills" className="flex-column dashboard-nav">
-                    <Nav.Item>
-                      <Nav.Link eventKey="overview">
-                        <i className="fas fa-chart-line me-2"></i>
-                        Resumen
-                      </Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="clientes">
-                        <i className="fas fa-users me-2"></i>
-                        Clientes
-                      </Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="propiedades">
-                        <i className="fas fa-building me-2"></i>
-                        Propiedades
-                      </Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="tareas">
-                        <i className="fas fa-tasks me-2"></i>
-                        Tareas
-                      </Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="visitas">
-                        <i className="fas fa-calendar-check me-2"></i>
-                        Visitas
-                      </Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="solicitudes">
-                        <i className="fas fa-calendar-plus me-2"></i>
-                        Solicitudes
-                        {solicitudes.length > 0 && (
-                          <Badge bg="danger" className="ms-2" style={{ fontSize: '0.7rem' }}>
-                            {solicitudes.length}
-                          </Badge>
-                        )}
-                      </Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="seguimientos">
-                        <i className="fas fa-clipboard-check me-2"></i>
-                        Seguimientos
-                      </Nav.Link>
-                    </Nav.Item>
-                    
-                    {/* ✅ PESTAÑA DE CONTRATOS INCORPORADA */}
-                    <Nav.Item>
-                      <Nav.Link eventKey="contratos">
-                        <i className="fas fa-file-contract me-2"></i>
-                        Contratos
-                      </Nav.Link>
-                    </Nav.Item>
-
-                    {/* ✅ PESTAÑA DE EMPLEADOS */}
-                    <Nav.Item>
-                      <Nav.Link eventKey="empleados">
-                        <i className="fas fa-users me-2"></i>
-                        Empleados
-                      </Nav.Link>
-                    </Nav.Item>
-                  </Nav>
-                </Card.Body>
-              </Card>
+              {/* FIX: Se usa position sticky con un top mayor y un z-index para asegurar que no se solape */}
+              <div className="sticky-top" style={{ top: '100px', zIndex: 100 }}>
+                <Card className="shadow-sm border-0">
+                  <Card.Body className="p-0">
+                    <Nav variant="pills" className="flex-column dashboard-nav">
+                      <Nav.Item>
+                        <Nav.Link eventKey="overview">
+                          <i className="fas fa-chart-line me-2"></i>
+                          Resumen
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="clientes">
+                          <i className="fas fa-users me-2"></i>
+                          Clientes
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="propiedades">
+                          <i className="fas fa-building me-2"></i>
+                          Propiedades
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="tareas">
+                          <i className="fas fa-tasks me-2"></i>
+                          Tareas
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="visitas">
+                          <i className="fas fa-calendar-check me-2"></i>
+                          Visitas
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="solicitudes">
+                          <i className="fas fa-calendar-plus me-2"></i>
+                          Solicitudes
+                          {solicitudes.length > 0 && (
+                            <Badge bg="danger" className="ms-2" style={{ fontSize: '0.7rem' }}>
+                              {solicitudes.length}
+                            </Badge>
+                          )}
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="seguimientos">
+                          <i className="fas fa-clipboard-check me-2"></i>
+                          Seguimientos
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="contratos">
+                          <i className="fas fa-file-contract me-2"></i>
+                          Contratos
+                        </Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="empleados">
+                          <i className="fas fa-users me-2"></i>
+                          Empleados
+                        </Nav.Link>
+                      </Nav.Item>
+                    </Nav>
+                  </Card.Body>
+                </Card>
+              </div>
             </Col>
 
             {/* Contenido dinámico según pestaña seleccionada */}
@@ -609,8 +608,6 @@ const Dashboard = () => {
 
                 {/* Pestaña: Seguimiento de Clientes */}
                 <Tab.Pane eventKey="seguimientos">
-                  {/* Si estamos en detalle de un cliente, renderizamos el Outlet (detalle),
-                      si no, mostramos el listado normal */}
                   {isSeguimientoDetail ? (
                     <Outlet />
                   ) : (
@@ -618,7 +615,7 @@ const Dashboard = () => {
                   )}
                 </Tab.Pane>
 
-                {/* ✅ PESTAÑA DE CONTRATOS INCORPORADA */}
+                {/* Pestaña de Contratos */}
                 <Tab.Pane eventKey="contratos">
                   <Card className="shadow-sm border-0">
                     <Card.Body>
@@ -627,10 +624,9 @@ const Dashboard = () => {
                   </Card>
                 </Tab.Pane>
 
-                {/* ✅ PESTAÑA DE EMPLEADOS (lista + acciones) */}
+                {/* Pestaña de Empleados */}
                 <Tab.Pane eventKey="empleados">
                   <div className="mb-4">
-                    {/* Lista de empleados con acciones */}
                     <EmpleadoList />
                   </div>
                 </Tab.Pane>
@@ -640,7 +636,7 @@ const Dashboard = () => {
         </Tab.Container>
       </Container>
 
-      {/* 🆕 Modal mejorado para seleccionar cliente con actualización automática */}
+      {/* Modales */}
       <SelectorClienteModal
         show={showClienteSelector}
         onHide={handleCloseModals}
@@ -650,7 +646,6 @@ const Dashboard = () => {
         onActualizarClientes={cargarClientes}
       />
 
-      {/* Modal para ver detalles de una visita */}
       <VisitaDetalle
         show={showVisitaDetalle}
         onHide={handleCloseModals}
@@ -658,7 +653,6 @@ const Dashboard = () => {
         onEdit={handleEditarVisita}
       />
 
-      {/* Modal para crear/editar visitas */}
       <VisitaForm
         show={showVisitaForm}
         onHide={handleCloseModals}
@@ -667,7 +661,6 @@ const Dashboard = () => {
         onSuccess={handleSuccessVisita}
       />
 
-      {/* Modal para aprobar solicitud de visita */}
       <Modal
         show={showAprobarModal}
         onHide={handleCloseModals}
@@ -690,9 +683,7 @@ const Dashboard = () => {
                   <p className="mb-0"><strong>Mensaje:</strong> {solicitudSeleccionada.mensaje}</p>
                 )}
               </div>
-
               <hr />
-
               <Form.Group className="mb-3">
                 <Form.Label className="fw-bold">
                   <i className="fas fa-calendar me-2"></i>
@@ -706,7 +697,6 @@ const Dashboard = () => {
                   required
                 />
               </Form.Group>
-
               <Form.Group className="mb-3">
                 <Form.Label className="fw-bold">
                   <i className="fas fa-clock me-2"></i>
@@ -719,11 +709,9 @@ const Dashboard = () => {
                   required
                 />
               </Form.Group>
-
               <Alert variant="info">
                 <i className="fas fa-info-circle me-2"></i>
-                Al aprobar esta solicitud, se creará automáticamente una visita programada
-                que aparecerá en la sección de "Visitas".
+                Al aprobar esta solicitud, se creará automáticamente una visita programada.
               </Alert>
             </>
           )}

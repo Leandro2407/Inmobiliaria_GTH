@@ -6,12 +6,11 @@ const Contact = () => {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const HOME_SELF = `${process.env.PUBLIC_URL}/casa.jpg`;
 
-  // En este diseño eliminamos el formulario de envío y ofrecemos CTAs directas
   const mailtoContact = `mailto:contacto@gthinmobiliaria.com?subject=${encodeURIComponent('Consulta desde sitio')}`;
-  const whatsappNumber = '+543874123456';
-  const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
-  const telPrimary = 'tel:+5493873115079';
-  const telSecondary = 'tel:+5493875503443';
+  
+  // Enlaces directos a WhatsApp para cada número
+  const waLinkPrimary = 'https://wa.me/5493873115079';
+  const waLinkSecondary = 'https://wa.me/5493875503443';
 
   return (
     <div className="contact-page">
@@ -43,7 +42,8 @@ const Contact = () => {
             {/* Información de Contacto - Lado Izquierdo */}
             <Col lg={5} md={6}>
               <div className="contact-info h-100">
-                <h2 className="fw-bold text-dark mb-4">Ponte en contacto</h2>
+                {/* Título modificado */}
+                <h2 className="fw-bold text-dark mb-4">Ponete en contacto</h2>
                 <p className="text-muted mb-5">
                   En GTH entendemos que cada operación inmobiliaria es única. 
                   Nuestro equipo está comprometido en brindarte soluciones personalizadas.
@@ -105,7 +105,7 @@ const Contact = () => {
               </div>
             </Col>
 
-            {/* CTAs de contacto - Lado Derecho (reemplazamos el formulario por botones directos) */}
+            {/* CTAs de contacto - Lado Derecho */}
             <Col lg={5} md={6}>
               <Card className="contact-form-card border-0 shadow-sm">
                 <Card.Body className="p-4 p-md-5 text-center">
@@ -113,23 +113,26 @@ const Contact = () => {
 
                   <p className="text-muted mb-4">Elige la forma más cómoda para comunicarte con nosotros.</p>
 
-                  <div className="d-grid gap-2 mb-3">
+                  <div className="d-grid gap-3 mb-4">
                     <Button as="a" href={mailtoContact} variant="outline-dark" size="lg">
                       <i className="fas fa-envelope me-2"></i>
                       Enviar correo
                     </Button>
-                    <Button as="a" href={whatsappLink} target="_blank" rel="noopener noreferrer" variant="success" size="lg">
-                      <i className="fab fa-whatsapp me-2"></i>
-                      Enviar por WhatsApp
-                    </Button>
-                    <Button as="a" href={telPrimary} variant="outline-secondary" size="lg">
-                      <i className="fas fa-phone me-2"></i>
-                      Llamar: +54 3873 11-5079
-                    </Button>
-                    <Button as="a" href={telSecondary} variant="outline-secondary" size="lg">
-                      <i className="fas fa-phone me-2"></i>
-                      Llamar: +54 3875 50-3443
-                    </Button>
+
+                    {/* Recuadro verde claro para WhatsApp */}
+                    <div className="p-4 rounded" style={{ backgroundColor: '#e8f5e9', border: '1px solid #c8e6c9' }}>
+                      <h5 className="text-success fw-bold mb-3">
+                        <i className="fab fa-whatsapp me-2"></i>Enviar por WhatsApp
+                      </h5>
+                      <div className="d-grid gap-2">
+                        <Button as="a" href={waLinkPrimary} target="_blank" rel="noopener noreferrer" variant="success" size="lg">
+                          Escribir al +54 3873 11-5079
+                        </Button>
+                        <Button as="a" href={waLinkSecondary} target="_blank" rel="noopener noreferrer" variant="success" size="lg">
+                          Escribir al +54 3875 50-3443
+                        </Button>
+                      </div>
+                    </div>
                   </div>
 
                   <hr />
@@ -137,7 +140,6 @@ const Contact = () => {
                   <div className="contact-social text-center mt-3">
                     <p className="text-muted mb-2">También podés seguirnos en nuestras redes</p>
                     <div className="d-grid gap-2 mb-3 instagram-btn-wrapper">
-                      {/* Instagram button styled like the WhatsApp button and full width */}
                       <Button
                         as="a"
                         href="https://www.instagram.com/gthinmobiliaria?igsh=djliNmZqMGQ1dXkw#"
@@ -165,8 +167,5 @@ const Contact = () => {
     </div>
   );
 };
-
-//coment //
-//ayuda//
 
 export default Contact;

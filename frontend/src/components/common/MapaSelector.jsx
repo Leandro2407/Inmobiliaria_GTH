@@ -4,25 +4,43 @@ import { FormControl, InputGroup } from 'react-bootstrap';
 
 const loadGoogleMapsScript = (apiKey) => {
   return new Promise((resolve, reject) => {
-    if (window.google && window.google.maps) {
+    if (window.google && window.google.maps && window.google.maps.places) {
       resolve(window.google);
       return;
     }
 
     const existing = document.getElementById('google-maps-script');
     if (existing) {
-      existing.addEventListener('load', () => resolve(window.google));
+      // Si el script ya está en el DOM, esperar a que cargue
+      const checkReady = setInterval(() => {
+        if (window.google && window.google.maps && window.google.maps.places) {
+          clearInterval(checkReady);
+          resolve(window.google);
+        }
+      }, 100);
+      // Timeout de seguridad
+      setTimeout(() => {
+        clearInterval(checkReady);
+        if (window.google && window.google.maps) {
+          resolve(window.google);
+        } else {
+          reject(new Error('Timeout esperando Google Maps'));
+        }
+      }, 10000);
       return;
     }
 
     const script = document.createElement('script');
     script.id = 'google-maps-script';
     // Se asegura de cargar la librería 'places'
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve(window.google);
-    script.onerror = reject;
+    script.onload = () => {
+      // Pequeño delay para asegurar que la API esté completamente inicializada
+      setTimeout(() => resolve(window.google), 100);
+    };
+    script.onerror = (err) => reject(err);
     document.head.appendChild(script);
   });
 };

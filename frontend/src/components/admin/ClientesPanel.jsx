@@ -5,7 +5,6 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import clienteService from '../../services/clienteService';
 
-// --- LISTA FIJA DE CIUDADES DE SALTA ---
 const SALTA_CITIES = [
   'AGUARAY', 'AGUAS BLANCAS', 'ANGASTACO', 'ANIMANÁ', 'APOLINARIO SARAVIA', 'BALLIVIAN', 
   'CACHI', 'CAFAYATE', 'CAMPO QUIJANO', 'CAMPO SANTO', 'CERRILLOS', 'CHICOANA', 
@@ -21,7 +20,6 @@ const SALTA_CITIES = [
   'TOLAR GRANDE', 'URUNDEL', 'VAQUEROS' 
 ];
 
-// 🆕 Función para formatear la categoría para mostrar
 const formatCategoriaForDisplay = (categoria) => {
   const map = {
     'alquiler': 'Inquilino',
@@ -31,7 +29,6 @@ const formatCategoriaForDisplay = (categoria) => {
   return map[categoria] || categoria;
 };
 
-// 🆕 Función para obtener el color del badge según categoría
 const getCategoriaBadgeColor = (categoria) => {
   const colors = {
     'alquiler': 'info',
@@ -41,7 +38,6 @@ const getCategoriaBadgeColor = (categoria) => {
   return colors[categoria] || 'secondary';
 };
 
-// Componente de Modal de Confirmación Personalizado
 const ConfirmDeleteModal = ({ show, onHide, onConfirm, clienteNombre }) => {
   return (
     <Modal show={show} onHide={onHide} centered>
@@ -52,28 +48,12 @@ const ConfirmDeleteModal = ({ show, onHide, onConfirm, clienteNombre }) => {
       </Modal.Header>
       <Modal.Body className="text-center px-4">
         <h5 className="mb-3">¿Está seguro que desea eliminar este cliente?</h5>
-        <p className="text-muted mb-0">
-          <strong>{clienteNombre}</strong>
-        </p>
-        <p className="text-muted small">
-          Esta acción no se puede deshacer
-        </p>
+        <p className="text-muted mb-0"><strong>{clienteNombre}</strong></p>
+        <p className="text-muted small">Esta acción no se puede deshacer</p>
       </Modal.Body>
       <Modal.Footer className="border-0 justify-content-center pb-4">
-        <Button 
-          variant="outline-secondary" 
-          onClick={onHide}
-          className="px-4"
-        >
-          Cancelar
-        </Button>
-        <Button 
-          variant="dark" 
-          onClick={onConfirm}
-          className="px-4"
-        >
-          Eliminar
-        </Button>
+        <Button variant="outline-secondary" onClick={onHide} className="px-4">Cancelar</Button>
+        <Button variant="dark" onClick={onConfirm} className="px-4">Eliminar</Button>
       </Modal.Footer>
     </Modal>
   );
@@ -91,7 +71,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
   const [filtros, setFiltros] = useState({
     search: '',
     categoria: '',
-    estado: '',
   });
 
   const cargarClientes = useCallback(async () => {
@@ -100,7 +79,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
       const params = {};
       if (filtros.search) params.search = filtros.search;
       if (filtros.categoria) params.categoria = filtros.categoria;
-      if (filtros.estado) params.estado = filtros.estado;
 
       const data = await clienteService.getAll(params);
       setClientes(data.results || data);
@@ -126,9 +104,7 @@ const ClientesPanel = ({ onClienteCreado }) => {
       .min(2, 'Mínimo 2 caracteres')
       .matches(/^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]+$/, 'Solo se permiten letras'),
     dni: Yup.string()
-      .required('El DNI es requerido')
-      .matches(/^[0-9]+$/, 'Solo se permiten números')
-      .min(7, 'El DNI debe tener al menos 7 dígitos')
+      .matches(/^[0-9]*$/, 'Solo se permiten números')
       .max(10, 'El DNI no puede tener más de 10 dígitos'),
     email: Yup.string()
       .email('Email inválido')
@@ -139,22 +115,27 @@ const ClientesPanel = ({ onClienteCreado }) => {
       .matches(/^[0-9]+$/, 'Solo se permiten números'),
     domicilio: Yup.string().required('El domicilio es requerido'),
     ciudad: Yup.string().required('La ciudad es requerida'),
-    // 🔄 Actualizado: Nueva validación para 'ambas'
     categoria: Yup.string()
       .required('La categoría es requerida')
       .oneOf(['alquiler', 'compra', 'ambas'], 'Seleccione una categoría válida'),
-    estado: Yup.string()
-      .oneOf(['activo', 'inactivo'], 'Estado inválido')
-      .required('El estado es requerido'),
   });
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
+      const finalValues = { ...values };
+      
+      // Si el DNI está vacío, generamos un PENDIENTE con código único para evitar error de base de datos
+      if (!finalValues.dni || finalValues.dni.trim() === '') {
+        finalValues.dni = `PENDIENTE-${Math.floor(Math.random() * 1000000)}`;
+      }
+
       if (clienteEditar) {
-        await clienteService.update(clienteEditar.id, values);
+        // Se mantiene el estado que ya tenía, ya que no se modifica en el form
+        finalValues.estado = clienteEditar.estado;
+        await clienteService.update(clienteEditar.id, finalValues);
         toast.success('Cliente actualizado exitosamente');
       } else {
-        await clienteService.create(values);
+        await clienteService.create(finalValues);
         toast.success('Cliente registrado exitosamente');
         if (onClienteCreado) {
           onClienteCreado();
@@ -183,7 +164,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
       setClienteVer(clienteCompleto);
       setShowViewModal(true);
     } catch (error) {
-      console.error('Error al cargar detalles del cliente:', error);
       toast.error('Error al cargar los detalles del cliente');
     }
   };
@@ -194,7 +174,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
       setClienteEditar(clienteCompleto);
       setShowModal(true);
     } catch (error) {
-      console.error('Error al cargar datos del cliente:', error);
       toast.error('Error al cargar los datos del cliente');
     }
   };
@@ -206,7 +185,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
 
   const confirmarEliminar = async () => {
     if (!clienteEliminar) return;
-    
     try {
       await clienteService.delete(clienteEliminar.id);
       toast.success('Cliente eliminado exitosamente');
@@ -214,19 +192,8 @@ const ClientesPanel = ({ onClienteCreado }) => {
       setShowDeleteModal(false);
       setClienteEliminar(null);
     } catch (error) {
-      console.error('Error al eliminar cliente:', error);
       toast.error('Error al eliminar el cliente');
     }
-  };
-
-  const getBadgeColor = (estado) => {
-    const colors = {
-      activo: 'success',
-      inactivo: 'secondary',
-      prospecto: 'warning',
-      convertido: 'primary',
-    };
-    return colors[estado] || 'secondary';
   };
 
   return (
@@ -234,73 +201,33 @@ const ClientesPanel = ({ onClienteCreado }) => {
       <Card className="shadow-sm border-0 mb-4">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4 className="mb-0">
-              <i className="fas fa-users me-2"></i>
-              Gestión de Clientes
-            </h4>
-            <Button
-              variant="dark"
-              onClick={() => {
-                setClienteEditar(null);
-                setShowModal(true);
-              }}
-            >
-              <i className="fas fa-plus me-2"></i>
-              Nuevo Cliente
+            <h4 className="mb-0"><i className="fas fa-users me-2"></i> Gestión de Clientes</h4>
+            <Button variant="dark" onClick={() => { setClienteEditar(null); setShowModal(true); }}>
+              <i className="fas fa-plus me-2"></i> Nuevo Cliente
             </Button>
           </div>
 
-          {/* Filtros */}
           <Row className="mb-4">
-            <Col md={4}>
-              <Form.Control
-                type="text"
-                placeholder="Buscar por nombre, DNI, email..."
-                value={filtros.search}
-                onChange={(e) => setFiltros({ ...filtros, search: e.target.value })}
-              />
+            <Col md={6}>
+              <Form.Control type="text" placeholder="Buscar por nombre, DNI, email..." value={filtros.search} onChange={(e) => setFiltros({ ...filtros, search: e.target.value })} />
             </Col>
-            <Col md={3}>
-              <Form.Select
-                value={filtros.categoria}
-                onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
-                className="custom-select"
-              >
+            <Col md={4}>
+              <Form.Select value={filtros.categoria} onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })} className="custom-select">
                 <option value="">Todas las categorías</option>
                 <option value="alquiler">Inquilino</option>
                 <option value="compra">Comprador</option>
                 <option value="ambas">Ambos</option>
               </Form.Select>
             </Col>
-            <Col md={3}>
-              <Form.Select
-                value={filtros.estado}
-                onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}
-                className="custom-select"
-              >
-                <option value="">Todos los estados</option>
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
-              </Form.Select>
-            </Col>
             <Col md={2}>
-              <Button
-                variant="outline-secondary"
-                onClick={() => setFiltros({ search: '', categoria: '', estado: '' })}
-                className="w-100"
-              >
-                <i className="fas fa-redo me-2"></i>
-                Actualizar
+              <Button variant="outline-secondary" onClick={() => setFiltros({ search: '', categoria: '' })} className="w-100">
+                <i className="fas fa-redo me-2"></i> Limpiar
               </Button>
             </Col>
           </Row>
 
-          {/* Tabla */}
           {loading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" variant="dark" />
-              <p className="mt-2">Cargando clientes...</p>
-            </div>
+            <div className="text-center py-5"><Spinner animation="border" variant="dark" /><p className="mt-2">Cargando clientes...</p></div>
           ) : (
             <div className="table-responsive">
               <Table hover>
@@ -311,7 +238,6 @@ const ClientesPanel = ({ onClienteCreado }) => {
                     <th>Email</th>
                     <th>Teléfono</th>
                     <th>Categoría</th>
-                    <th>Estado</th>
                     <th>Fecha Registro</th>
                     <th>Acciones</th>
                   </tr>
@@ -319,16 +245,16 @@ const ClientesPanel = ({ onClienteCreado }) => {
                 <tbody>
                   {clientes.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="text-center py-4">
-                        <i className="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
-                        No hay clientes registrados
+                      <td colSpan="7" className="text-center py-4">
+                        <i className="fas fa-inbox fa-3x text-muted mb-3 d-block"></i> No hay clientes registrados
                       </td>
                     </tr>
                   ) : (
                     clientes.map((cliente) => (
                       <tr key={cliente.id}>
                         <td className="fw-bold">{cliente.nombre_completo}</td>
-                        <td>{cliente.dni}</td>
+                        {/* Si dice PENDIENTE, mostramos vacío */}
+                        <td>{cliente.dni?.includes('PENDIENTE') ? '' : cliente.dni}</td>
                         <td>{cliente.email}</td>
                         <td>{cliente.telefono}</td>
                         <td>
@@ -336,39 +262,11 @@ const ClientesPanel = ({ onClienteCreado }) => {
                             {formatCategoriaForDisplay(cliente.categoria)}
                           </Badge>
                         </td>
-                        <td>
-                          <Badge bg={getBadgeColor(cliente.estado)} className="text-capitalize">
-                            {cliente.estado}
-                          </Badge>
-                        </td>
                         <td>{new Date(cliente.fecha_registro).toLocaleDateString()}</td>
                         <td>
-                          <Button
-                            variant="outline-dark"
-                            size="sm"
-                            className="me-1"
-                            onClick={() => handleVer(cliente)}
-                            title="Ver detalles"
-                          >
-                            <i className="fas fa-eye"></i>
-                          </Button>
-                          <Button
-                            variant="outline-dark"
-                            size="sm"
-                            className="me-1"
-                            onClick={() => handleEditar(cliente)}
-                            title="Editar"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </Button>
-                          <Button
-                            variant="outline-dark"
-                            size="sm"
-                            onClick={() => handleEliminar(cliente)}
-                            title="Eliminar"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </Button>
+                          <Button variant="outline-dark" size="sm" className="me-1" onClick={() => handleVer(cliente)} title="Ver detalles"><i className="fas fa-eye"></i></Button>
+                          <Button variant="outline-dark" size="sm" className="me-1" onClick={() => handleEditar(cliente)} title="Editar"><i className="fas fa-edit"></i></Button>
+                          <Button variant="outline-dark" size="sm" onClick={() => handleEliminar(cliente)} title="Eliminar"><i className="fas fa-trash"></i></Button>
                         </td>
                       </tr>
                     ))
@@ -380,23 +278,16 @@ const ClientesPanel = ({ onClienteCreado }) => {
         </Card.Body>
       </Card>
 
-      {/* Modal de Visualización */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg">
         <Modal.Header closeButton style={{ backgroundColor: '#2c2c2c', color: 'white', borderBottom: 'none' }}>
-          <Modal.Title>
-            <i className="fas fa-user me-2"></i>
-            Detalles del Cliente
-          </Modal.Title>
+          <Modal.Title><i className="fas fa-user me-2"></i> Detalles del Cliente</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ backgroundColor: '#f8f9fa' }}>
           {clienteVer && (
             <div>
               <Card className="mb-3 border-0 shadow-sm">
                 <Card.Body>
-                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
-                    <i className="fas fa-id-card me-2"></i>
-                    Información Personal
-                  </h5>
+                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}><i className="fas fa-id-card me-2"></i> Información Personal</h5>
                   <Row>
                     <Col md={6} className="mb-3">
                       <p className="mb-1 text-muted small">Nombre Completo:</p>
@@ -404,7 +295,7 @@ const ClientesPanel = ({ onClienteCreado }) => {
                     </Col>
                     <Col md={6} className="mb-3">
                       <p className="mb-1 text-muted small">DNI:</p>
-                      <p className="fw-bold mb-0">{clienteVer.dni}</p>
+                      <p className="fw-bold mb-0">{clienteVer.dni?.includes('PENDIENTE') ? 'No especificado' : clienteVer.dni}</p>
                     </Col>
                     <Col md={6} className="mb-3">
                       <p className="mb-1 text-muted small">Email:</p>
@@ -420,10 +311,7 @@ const ClientesPanel = ({ onClienteCreado }) => {
 
               <Card className="mb-3 border-0 shadow-sm">
                 <Card.Body>
-                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
-                    <i className="fas fa-map-marker-alt me-2"></i>
-                    Ubicación
-                  </h5>
+                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}><i className="fas fa-map-marker-alt me-2"></i> Ubicación</h5>
                   <Row>
                     <Col md={12} className="mb-3">
                       <p className="mb-1 text-muted small">Domicilio:</p>
@@ -445,24 +333,15 @@ const ClientesPanel = ({ onClienteCreado }) => {
 
               <Card className="border-0 shadow-sm">
                 <Card.Body>
-                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}>
-                    <i className="fas fa-info-circle me-2"></i>
-                    Información Adicional
-                  </h5>
+                  <h5 className="mb-3" style={{ color: '#2c2c2c' }}><i className="fas fa-info-circle me-2"></i> Información Adicional</h5>
                   <Row>
-                    <Col md={4} className="mb-3">
+                    <Col md={6} className="mb-3">
                       <p className="mb-1 text-muted small">Categoría:</p>
                       <Badge bg={getCategoriaBadgeColor(clienteVer.categoria)} className="text-capitalize">
                         {formatCategoriaForDisplay(clienteVer.categoria)}
                       </Badge>
                     </Col>
-                    <Col md={4} className="mb-3">
-                      <p className="mb-1 text-muted small">Estado:</p>
-                      <Badge bg={getBadgeColor(clienteVer.estado)} className="text-capitalize">
-                        {clienteVer.estado}
-                      </Badge>
-                    </Col>
-                    <Col md={4} className="mb-3">
+                    <Col md={6} className="mb-3">
                       <p className="mb-1 text-muted small">Fecha de Registro:</p>
                       <p className="fw-bold mb-0">{new Date(clienteVer.fecha_registro).toLocaleDateString()}</p>
                     </Col>
@@ -473,42 +352,27 @@ const ClientesPanel = ({ onClienteCreado }) => {
           )}
         </Modal.Body>
         <Modal.Footer className="border-0" style={{ backgroundColor: '#f8f9fa' }}>
-          <Button variant="outline-secondary" onClick={() => setShowViewModal(false)}>
-            Cerrar
-          </Button>
-          <Button 
-            variant="dark" 
-            onClick={() => {
-              setShowViewModal(false);
-              handleEditar(clienteVer);
-            }}
-          >
-            <i className="fas fa-edit me-2"></i>
-            Editar
-          </Button>
+          <Button variant="outline-secondary" onClick={() => setShowViewModal(false)}>Cerrar</Button>
+          <Button variant="dark" onClick={() => { setShowViewModal(false); handleEditar(clienteVer); }}><i className="fas fa-edit me-2"></i> Editar</Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Modal de Formulario */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>
-            {clienteEditar ? 'Editar Cliente' : 'Nuevo Cliente'}
-          </Modal.Title>
+          <Modal.Title>{clienteEditar ? 'Editar Cliente' : 'Nuevo Cliente'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Formik
             initialValues={{
               nombre: clienteEditar?.nombre || '',
               apellido: clienteEditar?.apellido || '',
-              dni: clienteEditar?.dni || '',
+              dni: clienteEditar?.dni?.includes('PENDIENTE') ? '' : (clienteEditar?.dni || ''),
               email: clienteEditar?.email || '',
               telefono: clienteEditar?.telefono || '',
               domicilio: clienteEditar?.domicilio || '',
               ciudad: clienteEditar?.ciudad || 'SALTA',
               codigo_postal: clienteEditar?.codigo_postal || '',
               categoria: clienteEditar?.categoria || '',
-              estado: clienteEditar?.estado || 'activo',
               presupuesto_min: clienteEditar?.presupuesto_min || '',
               presupuesto_max: clienteEditar?.presupuesto_max || '',
             }}
@@ -516,60 +380,21 @@ const ClientesPanel = ({ onClienteCreado }) => {
             onSubmit={handleSubmit}
             enableReinitialize
           >
-            {({
-              values,
-              errors,
-              touched,
-              handleChange,
-              handleBlur,
-              handleSubmit,
-              isSubmitting,
-              setFieldValue,
-            }) => (
+            {({ values, errors, touched, handleChange, handleBlur, handleSubmit, isSubmitting, setFieldValue }) => (
               <Form onSubmit={handleSubmit}>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Nombre *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="nombre"
-                        value={values.nombre}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]*$/.test(value)) {
-                            setFieldValue('nombre', value);
-                          }
-                        }}
-                        onBlur={handleBlur}
-                        isInvalid={touched.nombre && errors.nombre}
-                        placeholder="Ingrese solo letras"
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.nombre}
-                      </Form.Control.Feedback>
+                      <Form.Control type="text" name="nombre" value={values.nombre} onChange={(e) => { const value = e.target.value; if (value === '' || /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]*$/.test(value)) setFieldValue('nombre', value); }} onBlur={handleBlur} isInvalid={touched.nombre && errors.nombre} placeholder="Ingrese solo letras" />
+                      <Form.Control.Feedback type="invalid">{errors.nombre}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Apellido *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="apellido"
-                        value={values.apellido}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]*$/.test(value)) {
-                            setFieldValue('apellido', value);
-                          }
-                        }}
-                        onBlur={handleBlur}
-                        isInvalid={touched.apellido && errors.apellido}
-                        placeholder="Ingrese solo letras"
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.apellido}
-                      </Form.Control.Feedback>
+                      <Form.Control type="text" name="apellido" value={values.apellido} onChange={(e) => { const value = e.target.value; if (value === '' || /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]*$/.test(value)) setFieldValue('apellido', value); }} onBlur={handleBlur} isInvalid={touched.apellido && errors.apellido} placeholder="Ingrese solo letras" />
+                      <Form.Control.Feedback type="invalid">{errors.apellido}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                 </Row>
@@ -577,42 +402,16 @@ const ClientesPanel = ({ onClienteCreado }) => {
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>DNI *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="dni"
-                        value={values.dni}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^[0-9]*$/.test(value)) {
-                            setFieldValue('dni', value);
-                          }
-                        }}
-                        onBlur={handleBlur}
-                        isInvalid={touched.dni && errors.dni}
-                        placeholder="Ingrese solo números"
-                        maxLength={10}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.dni}
-                      </Form.Control.Feedback>
+                      <Form.Label>DNI</Form.Label>
+                      <Form.Control type="text" name="dni" value={values.dni} onChange={(e) => { const value = e.target.value; if (value === '' || /^[0-9]*$/.test(value)) setFieldValue('dni', value); }} onBlur={handleBlur} isInvalid={touched.dni && errors.dni} placeholder="Ingrese un DNI valido" maxLength={10} />
+                      <Form.Control.Feedback type="invalid">{errors.dni}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Email *</Form.Label>
-                      <Form.Control
-                        type="email"
-                        name="email"
-                        value={values.email}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        isInvalid={touched.email && errors.email}
-                        placeholder="ejemplo@dominio.com"
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.email}
-                      </Form.Control.Feedback>
+                      <Form.Control type="email" name="email" value={values.email} onChange={handleChange} onBlur={handleBlur} isInvalid={touched.email && errors.email} placeholder="ejemplo@dominio.com" />
+                      <Form.Control.Feedback type="invalid">{errors.email}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                 </Row>
@@ -621,132 +420,48 @@ const ClientesPanel = ({ onClienteCreado }) => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Teléfono *</Form.Label>
-                      <Form.Control
-                        type="tel"
-                        name="telefono"
-                        value={values.telefono}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^[0-9]*$/.test(value)) {
-                            setFieldValue('telefono', value);
-                          }
-                        }}
-                        onBlur={handleBlur}
-                        isInvalid={touched.telefono && errors.telefono}
-                        placeholder="Ingrese solo números"
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.telefono}
-                      </Form.Control.Feedback>
+                      <Form.Control type="tel" name="telefono" value={values.telefono} onChange={(e) => { const value = e.target.value; if (value === '' || /^[0-9]*$/.test(value)) setFieldValue('telefono', value); }} onBlur={handleBlur} isInvalid={touched.telefono && errors.telefono} placeholder="Ingrese solo números" />
+                      <Form.Control.Feedback type="invalid">{errors.telefono}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Ciudad *</Form.Label>
-                      <Form.Select
-                        name="ciudad"
-                        value={values.ciudad}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        isInvalid={touched.ciudad && errors.ciudad}
-                        className="custom-select"
-                      >
+                      <Form.Select name="ciudad" value={values.ciudad} onChange={handleChange} onBlur={handleBlur} isInvalid={touched.ciudad && errors.ciudad} className="custom-select">
                         <option value="">Seleccione Ciudad</option>
-                        {SALTA_CITIES.map(city => (
-                          <option key={city} value={city}>
-                            {city}
-                          </option>
-                        ))}
+                        {SALTA_CITIES.map(city => <option key={city} value={city}>{city}</option>)}
                       </Form.Select>
-                      <Form.Control.Feedback type="invalid">
-                        {errors.ciudad}
-                      </Form.Control.Feedback>
+                      <Form.Control.Feedback type="invalid">{errors.ciudad}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                 </Row>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Domicilio *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="domicilio"
-                    value={values.domicilio}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    isInvalid={touched.domicilio && errors.domicilio}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.domicilio}
-                  </Form.Control.Feedback>
-                </Form.Group>
-
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
+                      <Form.Label>Domicilio *</Form.Label>
+                      <Form.Control type="text" name="domicilio" value={values.domicilio} onChange={handleChange} onBlur={handleBlur} isInvalid={touched.domicilio && errors.domicilio} />
+                      <Form.Control.Feedback type="invalid">{errors.domicilio}</Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
                       <Form.Label>Categoría *</Form.Label>
-                      <Form.Select
-                        name="categoria"
-                        value={values.categoria}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        isInvalid={touched.categoria && errors.categoria}
-                        className="custom-select"
-                      >
+                      <Form.Select name="categoria" value={values.categoria} onChange={handleChange} onBlur={handleBlur} isInvalid={touched.categoria && errors.categoria} className="custom-select">
                         <option value="">Seleccione...</option>
                         <option value="alquiler">Inquilino</option>
                         <option value="compra">Comprador</option>
                         <option value="ambas">Ambos (Inquilino/Comprador)</option>
                       </Form.Select>
-                      <Form.Control.Feedback type="invalid">
-                        {errors.categoria}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Estado *</Form.Label>
-                      <Form.Select
-                        name="estado"
-                        value={values.estado}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        isInvalid={touched.estado && errors.estado}
-                        disabled={!clienteEditar}
-                        className="custom-select"
-                      >
-                        <option value="activo">Activo</option>
-                        {clienteEditar && <option value="inactivo">Inactivo</option>}
-                      </Form.Select>
-                      <Form.Control.Feedback type="invalid">
-                        {errors.estado}
-                      </Form.Control.Feedback>
+                      <Form.Control.Feedback type="invalid">{errors.categoria}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                 </Row>
 
                 <div className="d-flex justify-content-end gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowModal(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="dark"
-                    type="submit"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Spinner animation="border" size="sm" className="me-2" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-save me-2"></i>
-                        Guardar
-                      </>
-                    )}
+                  <Button variant="secondary" onClick={() => setShowModal(false)}>Cancelar</Button>
+                  <Button variant="dark" type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? <><Spinner animation="border" size="sm" className="me-2" />Guardando...</> : <><i className="fas fa-save me-2"></i>Guardar</>}
                   </Button>
                 </div>
               </Form>
@@ -755,28 +470,12 @@ const ClientesPanel = ({ onClienteCreado }) => {
         </Modal.Body>
       </Modal>
 
-      {/* Modal de Confirmación de Eliminación */}
-      <ConfirmDeleteModal
-        show={showDeleteModal}
-        onHide={() => {
-          setShowDeleteModal(false);
-          setClienteEliminar(null);
-        }}
-        onConfirm={confirmarEliminar}
-        clienteNombre={clienteEliminar?.nombre_completo || ''}
-      />
+      <ConfirmDeleteModal show={showDeleteModal} onHide={() => { setShowDeleteModal(false); setClienteEliminar(null); }} onConfirm={confirmarEliminar} clienteNombre={clienteEliminar?.nombre_completo || ''} />
 
-      {/* Estilos CSS */}
       <style>
         {`
-          .custom-select option:hover {
-            background-color: black !important;
-            color: white !important;
-          }
-          .custom-select option:checked {
-            background-color: #f8f9fa !important;
-            color: black !important;
-          }
+          .custom-select option:hover { background-color: black !important; color: white !important; }
+          .custom-select option:checked { background-color: #f8f9fa !important; color: black !important; }
         `}
       </style>
     </div>

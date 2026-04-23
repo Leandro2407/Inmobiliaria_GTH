@@ -1092,7 +1092,7 @@ const PropiedadesPanel = () => {
                   <div key={index} className="d-flex align-items-center">
                     <div 
                       className={`rounded-circle d-flex align-items-center justify-content-center ${
-                        isCompleted ? 'bg-primary text-white' : 'bg-light text-muted'
+                        isCompleted ? 'bg-dark text-white' : 'bg-light text-muted'
                       }`}
                       style={{ width: '40px', height: '40px', fontSize: '16px' }}
                     >
@@ -1100,7 +1100,7 @@ const PropiedadesPanel = () => {
                     </div>
                     {index < steps.length - 1 && (
                       <div 
-                        className={`mx-3 ${isCompleted && (currentPropertyType === 'terreno' && index === 3 ? currentStep >= 3 : index < currentStep) ? 'bg-primary' : 'bg-light'}`}
+                        className={`mx-3 ${isCompleted && (currentPropertyType === 'terreno' && index === 3 ? currentStep >= 3 : index < currentStep) ? 'bg-dark' : 'bg-light'}`}
                         style={{ height: '3px', width: '60px' }}
                       ></div>
                     )}
@@ -1118,11 +1118,11 @@ const PropiedadesPanel = () => {
               descripcion: propiedadEditar?.descripcion || '',
               tipo: propiedadEditar?.tipo || '',
               operacion: propiedadEditar?.operacion || '',
-              precio_venta: propiedadEditar?.precio_venta || '',
-              precio_alquiler: propiedadEditar?.precio_alquiler || '',
+              precio_venta: propiedadEditar?.precio_venta != null ? Math.round(Number(propiedadEditar.precio_venta)) : '',
+              precio_alquiler: propiedadEditar?.precio_alquiler != null ? Math.round(Number(propiedadEditar.precio_alquiler)) : '',
               moneda: propiedadEditar?.moneda || 'USD',
-              superficie_total: propiedadEditar?.superficie_total || '',
-              superficie_cubierta: propiedadEditar?.superficie_cubierta || '',
+              superficie_total: propiedadEditar?.superficie_total != null ? Number(propiedadEditar.superficie_total) : '',
+              superficie_cubierta: propiedadEditar?.superficie_cubierta != null ? Number(propiedadEditar.superficie_cubierta) : '',
               dormitorios: propiedadEditar?.dormitorios || 0,
               banos: propiedadEditar?.banos || 0,
               cocheras: propiedadEditar?.cocheras || 0,
@@ -1810,7 +1810,7 @@ const PropiedadesPanel = () => {
                   {/* Botón Siguiente o Guardar */}
                   {currentStep < steps.length - 1 ? (
                     <Button
-                      variant="primary"
+                      variant="dark"
                       onClick={() => {
                         // Validar campos del paso actual
                         const currentStepConfig = steps[currentStep];

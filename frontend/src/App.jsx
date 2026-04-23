@@ -133,9 +133,11 @@ function App() {
           <Footer />
 
           {/* Toast Notifications */}
+          {/* CORRECCIÓN: style top:'70px' para que no queden tapadas por la navbar sticky.
+              autoClose aumentado a 5000ms para que duren más tiempo visibles. */}
           <ToastContainer
             position="top-right"
-            autoClose={3000}
+            autoClose={5000}
             hideProgressBar={false}
             newestOnTop
             closeOnClick
@@ -144,6 +146,7 @@ function App() {
             draggable
             pauseOnHover
             theme="light"
+            style={{ top: '70px' }}
           />
         </div>
       </Router>

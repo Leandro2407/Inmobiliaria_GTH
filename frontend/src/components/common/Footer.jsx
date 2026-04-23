@@ -16,10 +16,11 @@ const Footer = () => {
           <Col md={6} className="text-md-end d-flex flex-column justify-content-center align-items-md-end align-items-center">
             <h5>Nuestras redes</h5>
             <div className="d-flex justify-content-center footerhome" style={{ paddingRight: '38px' }}>
-              <a href="https://www.instagram.com/gthinmobiliaria?igsh=djliNmZqMGQ1dXkw" className="text-white me-3">
+              {/* Se agregó target="_blank" y rel="noopener noreferrer" a ambos enlaces */}
+              <a href="https://www.instagram.com/gthinmobiliaria?igsh=djliNmZqMGQ1dXkw" target="_blank" rel="noopener noreferrer" className="text-white me-3">
                 <i className="fab fa-instagram"></i>
               </a>
-              <a href="https://wa.me/5493873115079" className="text-white">
+              <a href="https://wa.me/5493873115079" target="_blank" rel="noopener noreferrer" className="text-white">
                 <i className="fab fa-whatsapp"></i>
               </a>
             </div>

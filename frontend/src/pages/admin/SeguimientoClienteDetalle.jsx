@@ -13,25 +13,21 @@ import ContratosPanel from '../../components/contratos/ContratosPanel';
 import VisitaDetalle from '../../components/visitas/VisitaDetalle';
 
 const SeguimientoClienteDetalle = () => {
-  // Obtener ID del cliente desde la URL y hook de navegación
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Estados para datos del cliente y carga
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('perfil');
   const [contratos, setContratos] = useState([]);
   const [loadingContratos, setLoadingContratos] = useState(false);
   
-  // Estados para gestión de visitas
   const [showVisitaForm, setShowVisitaForm] = useState(false);
   const [showVisitaDetalle, setShowVisitaDetalle] = useState(false);
   const [visitaSeleccionada, setVisitaSeleccionada] = useState(null);
   const [visitaParaEditar, setVisitaParaEditar] = useState(null);
-  const [refreshVisitas, setRefreshVisitas] = useState(0); // 🎯 NUEVO: Para refrescar lista
+  const [refreshVisitas, setRefreshVisitas] = useState(0); 
 
-  // Cargar datos del cliente al montar el componente
   useEffect(() => {
     const cargarCliente = async () => {
       try {
@@ -52,7 +48,6 @@ const SeguimientoClienteDetalle = () => {
     }
   }, [id, navigate]);
 
-  // Cargar contratos del cliente para mostrar propiedades relacionadas en Intereses
   useEffect(() => {
     const cargarContratosCliente = async () => {
       try {
@@ -71,7 +66,6 @@ const SeguimientoClienteDetalle = () => {
     if (id) cargarContratosCliente();
   }, [id]);
 
-  // Función para obtener color del badge según estado del cliente
   const getBadgeColor = (estado) => {
     const colors = {
       activo: 'success',
@@ -82,7 +76,6 @@ const SeguimientoClienteDetalle = () => {
     return colors[estado] || 'secondary';
   };
 
-  // Función para obtener color del badge según categoría
   const getCategoriaColor = (categoria) => {
     const colors = {
       alquiler: 'info',
@@ -93,20 +86,17 @@ const SeguimientoClienteDetalle = () => {
     return colors[categoria] || 'secondary';
   };
 
-  // 🎯 NUEVO: Manejar finalización de visita desde VisitaList
   const handleFinalizarVisita = (visitaData) => {
     setVisitaParaEditar(visitaData);
     setShowVisitaForm(true);
   };
 
-  // 🎯 NUEVO: Manejar éxito en operación de visita
   const handleSuccessVisita = () => {
-    setRefreshVisitas(prev => prev + 1); // Forzar recarga de la lista
+    setRefreshVisitas(prev => prev + 1); 
     setShowVisitaForm(false);
     setVisitaParaEditar(null);
   };
 
-  // Mostrar spinner mientras carga
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -116,17 +106,12 @@ const SeguimientoClienteDetalle = () => {
     );
   }
 
-  // Mostrar mensaje si no se encuentra el cliente
   if (!cliente) {
     return (
       <div className="text-center py-5">
         <i className="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
         <h4>Cliente no encontrado</h4>
-        <Button 
-          variant="dark" 
-          onClick={() => navigate('/admin/seguimiento-clientes')}
-          className="mt-3"
-        >
+        <Button variant="dark" onClick={() => navigate('/admin/seguimiento-clientes')} className="mt-3">
           Volver al listado
         </Button>
       </div>
@@ -135,7 +120,6 @@ const SeguimientoClienteDetalle = () => {
 
   return (
     <div>
-      {/* Header con información básica del cliente */}
       <Card className="shadow-sm border-0 mb-4">
         <Card.Body>
           <Row className="align-items-center">
@@ -156,102 +140,55 @@ const SeguimientoClienteDetalle = () => {
                     <Badge bg={getCategoriaColor(cliente.categoria)} className="text-capitalize">
                       {cliente.categoria}
                     </Badge>
-                    <small className="text-muted">
-                      DNI: {cliente.dni}
-                    </small>
+                    <small className="text-muted">DNI: {cliente.dni?.includes('PENDIENTE') ? 'No especificado' : cliente.dni}</small>
                   </div>
                 </div>
               </div>
             </Col>
             <Col md={4} className="text-end">
-              <Button 
-                variant="outline-dark" 
-                onClick={() => navigate('/admin/seguimiento-clientes')}
-              >
-                <i className="fas fa-arrow-left me-2"></i>
-                Volver al listado
+              <Button variant="outline-dark" onClick={() => navigate('/admin/seguimiento-clientes')}>
+                <i className="fas fa-arrow-left me-2"></i> Volver al listado
               </Button>
             </Col>
           </Row>
         </Card.Body>
       </Card>
 
-      {/* Sistema de pestañas para diferentes secciones del seguimiento */}
-      <Tabs
-        activeKey={activeTab}
-        onSelect={(tab) => setActiveTab(tab)}
-        className="mb-4"
-        fill
-      >
-        {/* Pestaña 1: Perfil del Cliente */}
-        <Tab 
-          eventKey="perfil" 
-          title={
-            <span style={{ color: '#000', fontWeight: '500' }}>
-              <i className="fas fa-user me-2"></i>
-              Perfil
-            </span>
-          }
-        >
+      <Tabs activeKey={activeTab} onSelect={(tab) => setActiveTab(tab)} className="mb-4" fill>
+        <Tab eventKey="perfil" title={<span style={{ color: '#000', fontWeight: '500' }}><i className="fas fa-user me-2"></i> Perfil </span>}>
           <Row>
-            {/* Información Personal */}
             <Col md={6}>
               <Card className="h-100">
                 <Card.Header style={{ backgroundColor: '#000', color: 'white' }}>
-                  <h6 className="mb-0">
-                    <i className="fas fa-id-card me-2"></i>
-                    Información Personal
-                  </h6>
+                  <h6 className="mb-0"><i className="fas fa-id-card me-2"></i> Información Personal </h6>
                 </Card.Header>
                 <Card.Body>
                   <ListGroup variant="flush">
-                    <ListGroup.Item className="d-flex justify-content-between">
-                      <strong>Nombre:</strong>
-                      <span>{cliente.nombre_completo}</span>
-                    </ListGroup.Item>
-                    <ListGroup.Item className="d-flex justify-content-between">
-                      <strong>DNI:</strong>
-                      <span>{cliente.dni}</span>
-                    </ListGroup.Item>
-                    <ListGroup.Item className="d-flex justify-content-between">
-                      <strong>Email:</strong>
-                      <span>{cliente.email}</span>
-                    </ListGroup.Item>
-                    <ListGroup.Item className="d-flex justify-content-between">
-                      <strong>Teléfono:</strong>
-                      <span>{cliente.telefono}</span>
-                    </ListGroup.Item>
-                    <ListGroup.Item className="d-flex justify-content-between">
-                      <strong>Fecha Registro:</strong>
-                      <span>{new Date(cliente.fecha_registro).toLocaleDateString()}</span>
-                    </ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between"><strong>Nombre:</strong><span>{cliente.nombre_completo}</span></ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between"><strong>DNI:</strong><span>{cliente.dni?.includes('PENDIENTE') ? 'No especificado' : cliente.dni}</span></ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between"><strong>Email:</strong><span>{cliente.email}</span></ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between"><strong>Teléfono:</strong><span>{cliente.telefono}</span></ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between"><strong>Fecha Registro:</strong><span>{new Date(cliente.fecha_registro).toLocaleDateString()}</span></ListGroup.Item>
                   </ListGroup>
                 </Card.Body>
               </Card>
             </Col>
 
-            {/* Información de Ubicación */}
             <Col md={6}>
               <Card className="h-100">
                 <Card.Header style={{ backgroundColor: '#000', color: 'white' }}>
-                  <h6 className="mb-0">
-                    <i className="fas fa-map-marker-alt me-2"></i>
-                    Ubicación
-                  </h6>
+                  <h6 className="mb-0"><i className="fas fa-map-marker-alt me-2"></i> Ubicación </h6>
                 </Card.Header>
                 <Card.Body>
                   <ListGroup variant="flush">
+                    <ListGroup.Item><strong>Domicilio:</strong><br/>{cliente.domicilio}</ListGroup.Item>
                     <ListGroup.Item>
-                      <strong>Domicilio:</strong><br/>
-                      {cliente.domicilio}
-                    </ListGroup.Item>
-                    <ListGroup.Item className="d-flex justify-content-between">
-                      <strong>Ciudad:</strong>
+                      <strong className="me-2">Ciudad:</strong>
                       <span>{cliente.ciudad}</span>
                     </ListGroup.Item>
                     {cliente.codigo_postal && (
-                      <ListGroup.Item className="d-flex justify-content-between">
-                        <strong>Código Postal:</strong>
+                      <ListGroup.Item>
+                        <strong className="me-2">Código Postal:</strong>
                         <span>{cliente.codigo_postal}</span>
                       </ListGroup.Item>
                     )}
@@ -261,15 +198,11 @@ const SeguimientoClienteDetalle = () => {
             </Col>
           </Row>
 
-          {/* Información adicional: presupuesto y notas */}
           <Row className="mt-4">
             <Col md={12}>
               <Card>
                 <Card.Header style={{ backgroundColor: '#000', color: 'white' }}>
-                  <h6 className="mb-0">
-                    <i className="fas fa-info-circle me-2"></i>
-                    Información Adicional
-                  </h6>
+                  <h6 className="mb-0"><i className="fas fa-info-circle me-2"></i> Información Adicional</h6>
                 </Card.Header>
                 <Card.Body>
                   <Row>
@@ -277,12 +210,8 @@ const SeguimientoClienteDetalle = () => {
                       <p><strong>Presupuesto:</strong></p>
                       {cliente.presupuesto_min || cliente.presupuesto_max ? (
                         <div>
-                          {cliente.presupuesto_min && (
-                            <p className="mb-1">Mínimo: ${cliente.presupuesto_min}</p>
-                          )}
-                          {cliente.presupuesto_max && (
-                            <p className="mb-0">Máximo: ${cliente.presupuesto_max}</p>
-                          )}
+                          {cliente.presupuesto_min && <p className="mb-1">Mínimo: ${cliente.presupuesto_min}</p>}
+                          {cliente.presupuesto_max && <p className="mb-0">Máximo: ${cliente.presupuesto_max}</p>}
                         </div>
                       ) : (
                         <p className="text-muted">No especificado</p>
@@ -303,16 +232,7 @@ const SeguimientoClienteDetalle = () => {
           </Row>
         </Tab>
 
-        {/* Pestaña 2: Gestión de Visitas */}
-        <Tab 
-          eventKey="visitas" 
-          title={
-            <span style={{ color: '#000', fontWeight: '500' }}>
-              <i className="fas fa-calendar-check me-2"></i>
-              Visitas
-            </span>
-          }
-        >
+        <Tab eventKey="visitas" title={<span style={{ color: '#000', fontWeight: '500' }}><i className="fas fa-calendar-check me-2"></i> Visitas </span>}>
           <VisitaList 
             clienteId={id}
             onVerDetalle={(visitaId) => {
@@ -324,44 +244,20 @@ const SeguimientoClienteDetalle = () => {
               setShowVisitaForm(true);
             }}
             refreshTrigger={refreshVisitas}
-            onEditarVisita={handleFinalizarVisita} // 🎯 ACTUALIZADO: Para manejar finalización
+            onEditarVisita={handleFinalizarVisita}
           />
         </Tab>
 
-        {/* Pestaña 3: Contratos */}
-        <Tab 
-          eventKey="contratos" 
-          title={
-          <span style={{ color: '#000', fontWeight: '500' }}>
-          <i className="fas fa-file-contract me-2"></i>
-              Contratos
-          </span>
-          }
-        >
-        <ContratosPanel 
-        clienteId={id}
-        />
+        <Tab eventKey="contratos" title={<span style={{ color: '#000', fontWeight: '500' }}><i className="fas fa-file-contract me-2"></i> Contratos </span>}>
+          <ContratosPanel clienteId={id} />
         </Tab>
 
-        {/* Pestaña 4: Intereses */}
-        <Tab 
-          eventKey="intereses" 
-          title={
-            <span style={{ color: '#dc3545', fontWeight: '500' }}>
-              <i className="fas fa-heart me-2"></i>
-              Intereses
-            </span>
-          }
-        >
+        <Tab eventKey="intereses" title={<span style={{ color: '#dc3545', fontWeight: '500' }}><i className="fas fa-heart me-2"></i> Intereses </span>}>
           <Card>
             <Card.Header style={{ backgroundColor: '#000', color: 'white' }}>
-              <h6 className="mb-0">
-                <i className="fas fa-heart me-2"></i>
-                Preferencias e Intereses
-              </h6>
+              <h6 className="mb-0"><i className="fas fa-heart me-2"></i> Preferencias e Intereses</h6>
             </Card.Header>
             <Card.Body>
-              {/* Mostrar propiedades enlazadas a los contratos del cliente */}
               {loadingContratos ? (
                 <div className="text-center py-4">
                   <Spinner animation="border" />
@@ -383,17 +279,12 @@ const SeguimientoClienteDetalle = () => {
                         return (
                           <Col md={8} lg={6} xl={5} key={c.id || propId} className="d-flex justify-content-center">
                             <Card className="w-100">
-                              {/* Thumbnail (use placeholder if no image) */}
                               {(() => {
                                 const imagen = prop.imagen_principal || prop.imagenes?.[0]?.imagen || null;
                                 const src = imagen ? (imagen.startsWith('http') ? imagen : `${BACKEND_URL}${imagen}`) : 'https://via.placeholder.com/400x300?text=Sin+imagen';
                                 return (
                                   <div style={{ height: 180, overflow: 'hidden' }}>
-                                    <Image
-                                      src={src}
-                                      alt={prop.titulo || 'Imagen propiedad'}
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                    />
+                                    <Image src={src} alt={prop.titulo || 'Imagen propiedad'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                   </div>
                                 );
                               })()}
@@ -419,11 +310,8 @@ const SeguimientoClienteDetalle = () => {
             </Card.Body>
           </Card>
         </Tab>
-
-        {/* Pagos tab removed as requested */}
       </Tabs>
 
-      {/* Modales para gestión de visitas */}
       <VisitaForm
         show={showVisitaForm}
         onHide={() => {

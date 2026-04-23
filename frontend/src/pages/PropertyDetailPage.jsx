@@ -178,7 +178,7 @@ const PropertyDetailPage = () => {
         ? (vid.video_url.startsWith('http') ? vid.video_url : `${BACKEND_URL}${vid.video_url}`)
         : null;
       return { type: 'video', videoUrl, titulo: vid.titulo };
-    }).filter(v => v.type === 'youtube' ? v.embedUrl : v.videoUrl),
+    }).filter(v => v.type === 'youtube' ? !!v.embedUrl : !!v.videoUrl),
   ];
 
   return (
@@ -288,7 +288,7 @@ const PropertyDetailPage = () => {
                     </div>
                   </div>
                 </Col>
-                {propiedad.superficie_cubierta && (
+                {propiedad.tipo !== 'terreno' && propiedad.superficie_cubierta && (
                   <Col xs={6}>
                     <div className="d-flex align-items-center">
                       <i className="fas fa-home fa-lg me-2" style={{ color: '#6c757d' }}></i>
@@ -299,25 +299,29 @@ const PropertyDetailPage = () => {
                     </div>
                   </Col>
                 )}
-                <Col xs={4}>
-                  <div className="d-flex align-items-center">
-                    <i className="fas fa-bed fa-lg me-2" style={{ color: '#6c757d' }}></i>
-                    <div>
-                      <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Dormitorios</small>
-                      <span className="fw-bold">{propiedad.dormitorios || 0}</span>
+                {propiedad.tipo !== 'terreno' && (
+                  <Col xs={4}>
+                    <div className="d-flex align-items-center">
+                      <i className="fas fa-bed fa-lg me-2" style={{ color: '#6c757d' }}></i>
+                      <div>
+                        <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Dormitorios</small>
+                        <span className="fw-bold">{propiedad.dormitorios || 0}</span>
+                      </div>
                     </div>
-                  </div>
-                </Col>
-                <Col xs={4}>
-                  <div className="d-flex align-items-center">
-                    <i className="fas fa-bath fa-lg me-2" style={{ color: '#6c757d' }}></i>
-                    <div>
-                      <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Baños</small>
-                      <span className="fw-bold">{propiedad.banos || 0}</span>
+                  </Col>
+                )}
+                {propiedad.tipo !== 'terreno' && (
+                  <Col xs={4}>
+                    <div className="d-flex align-items-center">
+                      <i className="fas fa-bath fa-lg me-2" style={{ color: '#6c757d' }}></i>
+                      <div>
+                        <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Baños</small>
+                        <span className="fw-bold">{propiedad.banos || 0}</span>
+                      </div>
                     </div>
-                  </div>
-                </Col>
-                {propiedad.cocheras > 0 && (
+                  </Col>
+                )}
+                {propiedad.tipo !== 'terreno' && propiedad.cocheras > 0 && (
                   <Col xs={4}>
                     <div className="d-flex align-items-center">
                       <i className="fas fa-car fa-lg me-2" style={{ color: '#6c757d' }}></i>
@@ -429,8 +433,8 @@ const PropertyDetailPage = () => {
               <div className="mb-4">
                 <Row className="g-3">
                   <Col md={12}>
-                    <div className="d-flex align-items-center mb-2">
-                      <strong className="me-2" style={{ minWidth: '100px' }}>Dirección:</strong>
+                    <div className="mb-2">
+                      <strong>Dirección: </strong>
                       <span>{calle} {numeroCalle}</span>
                     </div>
                   </Col>

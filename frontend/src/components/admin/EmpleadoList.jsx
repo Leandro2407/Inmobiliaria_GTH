@@ -20,7 +20,6 @@ const EmpleadoList = () => {
       setLoading(true);
       const res = await api.get('/auth/users/');
       const data = res.data.results || res.data;
-      // Filtrar por rol agente/administrador
       const lista = (Array.isArray(data) ? data : []).filter(u => ['agente', 'administrador'].includes(u.rol));
       setEmpleados(lista);
     } catch (error) {
@@ -37,11 +36,10 @@ const EmpleadoList = () => {
 
   const isAdmin = authService.isAdmin();
 
-  // Función para determinar si se puede editar/eliminar un empleado específico
   const canModifyEmpleado = (empleado) => {
-    if (!isAdmin) return false; // Solo administradores pueden modificar
-    if (empleado.rol === 'administrador') return false; // No se puede modificar otros administradores
-    return true; // Se puede modificar agentes
+    if (!isAdmin) return false; 
+    if (empleado.rol === 'administrador') return false; 
+    return true; 
   };
 
   const openDeleteModal = (empleado) => {
@@ -113,7 +111,6 @@ const EmpleadoList = () => {
           </div>
         </div>
 
-        {/* Alerta para agentes sin permisos */}
         {!isAdmin && (
           <Alert variant="warning" className="mb-3">
             <i className="fas fa-lock me-2"></i>
@@ -124,7 +121,7 @@ const EmpleadoList = () => {
         {isAdmin && (
           <Alert variant="info" className="mb-3">
             <i className="fas fa-info-circle me-2"></i>
-            <strong>Permisos de administrador:</strong> Puedes editar y eliminar agentes, pero no otros administradores.
+            <strong>Permisos de administrador:</strong> Podés editar y eliminar agentes.
           </Alert>
         )}
 
@@ -213,6 +210,11 @@ const EmpleadoList = () => {
                   first_name: selectedEmpleado.first_name,
                   last_name: selectedEmpleado.last_name,
                   telefono: selectedEmpleado.telefono || '',
+                  dni: selectedEmpleado.dni || '',
+                  fecha_nacimiento: selectedEmpleado.fecha_nacimiento || '',
+                  barrio: selectedEmpleado.barrio || '',
+                  calle: selectedEmpleado.calle || '',
+                  numeracion: selectedEmpleado.numeracion || '',
                   rol: selectedEmpleado.rol,
                 }}
                 onCreated={() => { setShowEditModal(false); cargarEmpleados(); }}
@@ -231,11 +233,14 @@ const EmpleadoList = () => {
             {selectedEmpleado ? (
               <div>
                 <p><strong>Nombre:</strong> {selectedEmpleado.first_name} {selectedEmpleado.last_name}</p>
+                <p><strong>DNI:</strong> {selectedEmpleado.dni || '-'}</p>
+                <p><strong>Fecha de Nacimiento:</strong> {selectedEmpleado.fecha_nacimiento ? new Date(selectedEmpleado.fecha_nacimiento).toLocaleDateString() : '-'}</p>
                 <p><strong>Email:</strong> {selectedEmpleado.email}</p>
                 <p><strong>Usuario:</strong> {selectedEmpleado.username}</p>
                 <p><strong>Rol:</strong> {selectedEmpleado.rol}</p>
                 <p><strong>Activo:</strong> {selectedEmpleado.is_active ? 'Sí' : 'No'}</p>
                 <p><strong>Teléfono:</strong> {selectedEmpleado.telefono || '-'}</p>
+                <p><strong>Domicilio:</strong> {selectedEmpleado.barrio || selectedEmpleado.calle ? `${selectedEmpleado.barrio || ''} - ${selectedEmpleado.calle || ''} ${selectedEmpleado.numeracion || ''}` : '-'}</p>
               </div>
             ) : null}
           </Modal.Body>
@@ -244,7 +249,7 @@ const EmpleadoList = () => {
           </Modal.Footer>
         </Modal>
 
-        {/* Delete Confirmation Modal (custom, no browser alert) */}
+        {/* Delete Modal */}
         <Modal show={showDeleteModal} onHide={handleDeleteCancel} centered>
           <Modal.Header className="border-0 pb-0">
             <Modal.Title className="w-100 text-center">¿Está seguro que desea eliminar a este empleado?</Modal.Title>
